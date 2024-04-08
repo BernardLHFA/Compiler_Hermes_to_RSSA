@@ -18,8 +18,8 @@ struct
           (*val _ = TextIO.output (TextIO.stdErr, Data.showProgram pgm)*)
         in
           TextIO.output (TextIO.stdErr,Data.showProgram pgm) ;
-          Types.check pgm (*;*)
-          (*HermesInt.run pgm backwards*)
+          Types.check pgm ;
+          Interpreter.run pgm backwards
         end
           handle Parsing.yyexit ob => errorMess "Parser-exit\n"
                | Parsing.ParseError ob =>
@@ -34,9 +34,9 @@ struct
                | Types.Error (mess, (lin,col)) =>
                      errorMess ("Type error: " ^mess^ " at line "
                       ^ makestring lin ^ ", column " ^ makestring col)
-               (*| HermesInt.Error (mess, (lin,col)) =>
+               | Interpreter.Error (mess, (lin,col)) =>
                      errorMess ("Runtime error: " ^mess^ " at line "
-                      ^ makestring lin ^ ", column " ^ makestring col)*)
+                      ^ makestring lin ^ ", column " ^ makestring col)
                | BigInt.BigIntError (mess, (lin,col)) =>
                      errorMess ("Numeric error: " ^mess^ " at line "
                       ^ makestring lin ^ ", column " ^ makestring col)

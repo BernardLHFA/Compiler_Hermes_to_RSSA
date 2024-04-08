@@ -7,5 +7,7 @@ mosmlc -c Lexer.sml
 mosmlc -c Types.sig
 mosmlc -c Types.sml
 mosmlc -c BigInt.sml
+mosmlc -c Interpreter.sig
+mosmlc -c Interpreter.sml
 mosmlc -o hi Main.sml
 
