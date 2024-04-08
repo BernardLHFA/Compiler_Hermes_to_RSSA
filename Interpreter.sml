@@ -14,6 +14,7 @@ struct
           case ex of
             (Data.EndS(f, args, p2)) =>
               if (get_Var f) = "main"
+              
               then do_B Data.BlockS(en, (List.rev (List.map R ss)), ex, p)
               else run ps backwards
           | _ => run ps backwards
