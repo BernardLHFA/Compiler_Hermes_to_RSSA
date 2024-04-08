@@ -1,0 +1,1708 @@
+   0  $accept : %entry% $end
+
+   1  Program : Blocks EOF
+
+   2  Blocks : Block
+   3         | Block Blocks
+
+   4  Block : Entry COLON Stats COLON Exit
+
+   5  Entry : BEGIN NAME LPAR Args RPAR
+   6        | NAME LPAR Args RPAR LARR
+   7        | NAME LPAR Args RPAR NAME LARR Cond
+
+   8  Exit : END NAME LPAR Args RPAR
+   9       | Cond RARR NAME LPAR Args RPAR NAME
+  10       | RARR NAME LPAR Args RPAR
+
+  11  Args : Type Atom COMM Args
+  12       | Type Atom
+
+  13  Type : Secret
+  14       | Public
+
+  15  Public : P8
+  16         | P16
+  17         | P32
+  18         | P64
+
+  19  Secret : S8
+  20         | S16
+  21         | S32
+  22         | S64
+
+  23  Atom : NAME
+  24       | INT
+
+  25  Cond : Atom EQ Atom
+  26       | Atom NE Atom
+  27       | Atom LT Atom
+  28       | Atom LE Atom
+  29       | Atom GT Atom
+  30       | Atom GE Atom
+
+  31  Memory : Type LBRACKET Atom RBRACKET
+
+  32  Stat : Type Atom ASSIGN Atom
+  33       | Type Atom ASSIGN Update
+  34       | Type NAME COMM Type NAME ASSIGN NAME COMM NAME
+  35       | Memory PLUSEQ Operation
+  36       | Memory MINUSEQ Operation
+  37       | Memory XOREQ Operation
+  38       | Memory LSHIFTEQ Operation
+  39       | Memory RSHIFTEQ Operation
+  40       | Memory SWAP Memory
+  41       | Atom ASSIGN Memory ASSIGN Atom
+  42       | LPAR Args RPAR ASSIGN CALL NAME LPAR Args RPAR
+  43       | LPAR Args RPAR ASSIGN UNCALL NAME LPAR Args RPAR
+  44       | Public COLON NAME ASSIGN REVEAL Secret NAME
+  45       | Secret COLON NAME ASSIGN HIDE Public NAME
+
+  46  Stats : Stat
+  47        | Stat Stats
+
+  48  Update : Atom PLUS Operation
+  49         | Atom MINUS Operation
+  50         | Atom XOR Operation
+  51         | Atom LSHIFT Operation
+  52         | Atom RSHIFT Operation
+
+  53  Operation : Atom
+  54            | LPAR Atom PLUS Atom RPAR
+  55            | LPAR Atom MINUS Atom RPAR
+  56            | LPAR Atom XOR Atom RPAR
+  57            | LPAR Atom LSHIFT Atom RPAR
+  58            | LPAR Atom RSHIFT Atom RPAR
+  59            | LPAR Atom TIMES Atom RPAR
+  60            | LPAR Atom DIV Atom RPAR
+  61            | LPAR Atom MOD Atom RPAR
+  62            | LPAR Atom AMPERSAND Atom RPAR
+  63            | LPAR Atom BAR Atom RPAR
+
+  64  %entry% : '\001' Program
+
+state 0
+	$accept : . %entry% $end  (0)
+
+	'\001'  shift 1
+	.  error
+
+	%entry%  goto 2
+
+
+state 1
+	%entry% : '\001' . Program  (64)
+
+	BEGIN  shift 3
+	NAME  shift 4
+	.  error
+
+	Program  goto 5
+	Blocks  goto 6
+	Block  goto 7
+	Entry  goto 8
+
+
+state 2
+	$accept : %entry% . $end  (0)
+
+	$end  accept
+
+
+state 3
+	Entry : BEGIN . NAME LPAR Args RPAR  (5)
+
+	NAME  shift 9
+	.  error
+
+
+state 4
+	Entry : NAME . LPAR Args RPAR LARR  (6)
+	Entry : NAME . LPAR Args RPAR NAME LARR Cond  (7)
+
+	LPAR  shift 10
+	.  error
+
+
+state 5
+	%entry% : '\001' Program .  (64)
+
+	.  reduce 64
+
+
+state 6
+	Program : Blocks . EOF  (1)
+
+	EOF  shift 11
+	.  error
+
+
+state 7
+	Blocks : Block .  (2)
+	Blocks : Block . Blocks  (3)
+
+	BEGIN  shift 3
+	NAME  shift 4
+	EOF  reduce 2
+
+	Blocks  goto 12
+	Block  goto 7
+	Entry  goto 8
+
+
+state 8
+	Block : Entry . COLON Stats COLON Exit  (4)
+
+	COLON  shift 13
+	.  error
+
+
+state 9
+	Entry : BEGIN NAME . LPAR Args RPAR  (5)
+
+	LPAR  shift 14
+	.  error
+
+
+state 10
+	Entry : NAME LPAR . Args RPAR LARR  (6)
+	Entry : NAME LPAR . Args RPAR NAME LARR Cond  (7)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 23
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 11
+	Program : Blocks EOF .  (1)
+
+	.  reduce 1
+
+
+state 12
+	Blocks : Block Blocks .  (3)
+
+	.  reduce 3
+
+
+state 13
+	Block : Entry COLON . Stats COLON Exit  (4)
+
+	INT  shift 27
+	LPAR  shift 28
+	NAME  shift 29
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Type  goto 30
+	Atom  goto 31
+	Memory  goto 32
+	Stat  goto 33
+	Stats  goto 34
+	Public  goto 35
+	Secret  goto 36
+
+
+state 14
+	Entry : BEGIN NAME LPAR . Args RPAR  (5)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 37
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 15
+	Public : P16 .  (16)
+
+	.  reduce 16
+
+
+state 16
+	Public : P32 .  (17)
+
+	.  reduce 17
+
+
+state 17
+	Public : P64 .  (18)
+
+	.  reduce 18
+
+
+state 18
+	Public : P8 .  (15)
+
+	.  reduce 15
+
+
+state 19
+	Secret : S16 .  (20)
+
+	.  reduce 20
+
+
+state 20
+	Secret : S32 .  (21)
+
+	.  reduce 21
+
+
+state 21
+	Secret : S64 .  (22)
+
+	.  reduce 22
+
+
+state 22
+	Secret : S8 .  (19)
+
+	.  reduce 19
+
+
+state 23
+	Entry : NAME LPAR Args . RPAR LARR  (6)
+	Entry : NAME LPAR Args . RPAR NAME LARR Cond  (7)
+
+	RPAR  shift 38
+	.  error
+
+
+state 24
+	Args : Type . Atom COMM Args  (11)
+	Args : Type . Atom  (12)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 39
+
+
+state 25
+	Type : Public .  (14)
+
+	.  reduce 14
+
+
+state 26
+	Type : Secret .  (13)
+
+	.  reduce 13
+
+
+state 27
+	Atom : INT .  (24)
+
+	.  reduce 24
+
+
+state 28
+	Stat : LPAR . Args RPAR ASSIGN CALL NAME LPAR Args RPAR  (42)
+	Stat : LPAR . Args RPAR ASSIGN UNCALL NAME LPAR Args RPAR  (43)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 40
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 29
+	Atom : NAME .  (23)
+
+	.  reduce 23
+
+
+state 30
+	Memory : Type . LBRACKET Atom RBRACKET  (31)
+	Stat : Type . Atom ASSIGN Atom  (32)
+	Stat : Type . Atom ASSIGN Update  (33)
+	Stat : Type . NAME COMM Type NAME ASSIGN NAME COMM NAME  (34)
+
+	INT  shift 27
+	LBRACKET  shift 41
+	NAME  shift 42
+	.  error
+
+	Atom  goto 43
+
+
+state 31
+	Stat : Atom . ASSIGN Memory ASSIGN Atom  (41)
+
+	ASSIGN  shift 44
+	.  error
+
+
+state 32
+	Stat : Memory . PLUSEQ Operation  (35)
+	Stat : Memory . MINUSEQ Operation  (36)
+	Stat : Memory . XOREQ Operation  (37)
+	Stat : Memory . LSHIFTEQ Operation  (38)
+	Stat : Memory . RSHIFTEQ Operation  (39)
+	Stat : Memory . SWAP Memory  (40)
+
+	LSHIFTEQ  shift 45
+	MINUSEQ  shift 46
+	PLUSEQ  shift 47
+	RSHIFTEQ  shift 48
+	SWAP  shift 49
+	XOREQ  shift 50
+	.  error
+
+
+state 33
+	Stats : Stat .  (46)
+	Stats : Stat . Stats  (47)
+
+	INT  shift 27
+	LPAR  shift 28
+	NAME  shift 29
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	COLON  reduce 46
+
+	Type  goto 30
+	Atom  goto 31
+	Memory  goto 32
+	Stat  goto 33
+	Stats  goto 51
+	Public  goto 35
+	Secret  goto 36
+
+
+state 34
+	Block : Entry COLON Stats . COLON Exit  (4)
+
+	COLON  shift 52
+	.  error
+
+
+state 35
+	Type : Public .  (14)
+	Stat : Public . COLON NAME ASSIGN REVEAL Secret NAME  (44)
+
+	COLON  shift 53
+	INT  reduce 14
+	LBRACKET  reduce 14
+	NAME  reduce 14
+
+
+state 36
+	Type : Secret .  (13)
+	Stat : Secret . COLON NAME ASSIGN HIDE Public NAME  (45)
+
+	COLON  shift 54
+	INT  reduce 13
+	LBRACKET  reduce 13
+	NAME  reduce 13
+
+
+state 37
+	Entry : BEGIN NAME LPAR Args . RPAR  (5)
+
+	RPAR  shift 55
+	.  error
+
+
+state 38
+	Entry : NAME LPAR Args RPAR . LARR  (6)
+	Entry : NAME LPAR Args RPAR . NAME LARR Cond  (7)
+
+	LARR  shift 56
+	NAME  shift 57
+	.  error
+
+
+state 39
+	Args : Type Atom . COMM Args  (11)
+	Args : Type Atom .  (12)
+
+	COMM  shift 58
+	RPAR  reduce 12
+
+
+state 40
+	Stat : LPAR Args . RPAR ASSIGN CALL NAME LPAR Args RPAR  (42)
+	Stat : LPAR Args . RPAR ASSIGN UNCALL NAME LPAR Args RPAR  (43)
+
+	RPAR  shift 59
+	.  error
+
+
+state 41
+	Memory : Type LBRACKET . Atom RBRACKET  (31)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 60
+
+
+state 42
+	Atom : NAME .  (23)
+	Stat : Type NAME . COMM Type NAME ASSIGN NAME COMM NAME  (34)
+
+	COMM  shift 61
+	ASSIGN  reduce 23
+
+
+state 43
+	Stat : Type Atom . ASSIGN Atom  (32)
+	Stat : Type Atom . ASSIGN Update  (33)
+
+	ASSIGN  shift 62
+	.  error
+
+
+state 44
+	Stat : Atom ASSIGN . Memory ASSIGN Atom  (41)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Type  goto 63
+	Memory  goto 64
+	Public  goto 25
+	Secret  goto 26
+
+
+state 45
+	Stat : Memory LSHIFTEQ . Operation  (38)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 67
+
+
+state 46
+	Stat : Memory MINUSEQ . Operation  (36)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 68
+
+
+state 47
+	Stat : Memory PLUSEQ . Operation  (35)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 69
+
+
+state 48
+	Stat : Memory RSHIFTEQ . Operation  (39)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 70
+
+
+state 49
+	Stat : Memory SWAP . Memory  (40)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Type  goto 63
+	Memory  goto 71
+	Public  goto 25
+	Secret  goto 26
+
+
+state 50
+	Stat : Memory XOREQ . Operation  (37)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 72
+
+
+state 51
+	Stats : Stat Stats .  (47)
+
+	.  reduce 47
+
+
+state 52
+	Block : Entry COLON Stats COLON . Exit  (4)
+
+	END  shift 73
+	INT  shift 27
+	NAME  shift 29
+	RARR  shift 74
+	.  error
+
+	Exit  goto 75
+	Atom  goto 76
+	Cond  goto 77
+
+
+state 53
+	Stat : Public COLON . NAME ASSIGN REVEAL Secret NAME  (44)
+
+	NAME  shift 78
+	.  error
+
+
+state 54
+	Stat : Secret COLON . NAME ASSIGN HIDE Public NAME  (45)
+
+	NAME  shift 79
+	.  error
+
+
+state 55
+	Entry : BEGIN NAME LPAR Args RPAR .  (5)
+
+	.  reduce 5
+
+
+state 56
+	Entry : NAME LPAR Args RPAR LARR .  (6)
+
+	.  reduce 6
+
+
+state 57
+	Entry : NAME LPAR Args RPAR NAME . LARR Cond  (7)
+
+	LARR  shift 80
+	.  error
+
+
+state 58
+	Args : Type Atom COMM . Args  (11)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 81
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 59
+	Stat : LPAR Args RPAR . ASSIGN CALL NAME LPAR Args RPAR  (42)
+	Stat : LPAR Args RPAR . ASSIGN UNCALL NAME LPAR Args RPAR  (43)
+
+	ASSIGN  shift 82
+	.  error
+
+
+state 60
+	Memory : Type LBRACKET Atom . RBRACKET  (31)
+
+	RBRACKET  shift 83
+	.  error
+
+
+state 61
+	Stat : Type NAME COMM . Type NAME ASSIGN NAME COMM NAME  (34)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Type  goto 84
+	Public  goto 25
+	Secret  goto 26
+
+
+state 62
+	Stat : Type Atom ASSIGN . Atom  (32)
+	Stat : Type Atom ASSIGN . Update  (33)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 85
+	Update  goto 86
+
+
+state 63
+	Memory : Type . LBRACKET Atom RBRACKET  (31)
+
+	LBRACKET  shift 41
+	.  error
+
+
+state 64
+	Stat : Atom ASSIGN Memory . ASSIGN Atom  (41)
+
+	ASSIGN  shift 87
+	.  error
+
+
+state 65
+	Operation : LPAR . Atom PLUS Atom RPAR  (54)
+	Operation : LPAR . Atom MINUS Atom RPAR  (55)
+	Operation : LPAR . Atom XOR Atom RPAR  (56)
+	Operation : LPAR . Atom LSHIFT Atom RPAR  (57)
+	Operation : LPAR . Atom RSHIFT Atom RPAR  (58)
+	Operation : LPAR . Atom TIMES Atom RPAR  (59)
+	Operation : LPAR . Atom DIV Atom RPAR  (60)
+	Operation : LPAR . Atom MOD Atom RPAR  (61)
+	Operation : LPAR . Atom AMPERSAND Atom RPAR  (62)
+	Operation : LPAR . Atom BAR Atom RPAR  (63)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 88
+
+
+state 66
+	Operation : Atom .  (53)
+
+	.  reduce 53
+
+
+state 67
+	Stat : Memory LSHIFTEQ Operation .  (38)
+
+	.  reduce 38
+
+
+state 68
+	Stat : Memory MINUSEQ Operation .  (36)
+
+	.  reduce 36
+
+
+state 69
+	Stat : Memory PLUSEQ Operation .  (35)
+
+	.  reduce 35
+
+
+state 70
+	Stat : Memory RSHIFTEQ Operation .  (39)
+
+	.  reduce 39
+
+
+state 71
+	Stat : Memory SWAP Memory .  (40)
+
+	.  reduce 40
+
+
+state 72
+	Stat : Memory XOREQ Operation .  (37)
+
+	.  reduce 37
+
+
+state 73
+	Exit : END . NAME LPAR Args RPAR  (8)
+
+	NAME  shift 89
+	.  error
+
+
+state 74
+	Exit : RARR . NAME LPAR Args RPAR  (10)
+
+	NAME  shift 90
+	.  error
+
+
+state 75
+	Block : Entry COLON Stats COLON Exit .  (4)
+
+	.  reduce 4
+
+
+state 76
+	Cond : Atom . EQ Atom  (25)
+	Cond : Atom . NE Atom  (26)
+	Cond : Atom . LT Atom  (27)
+	Cond : Atom . LE Atom  (28)
+	Cond : Atom . GT Atom  (29)
+	Cond : Atom . GE Atom  (30)
+
+	EQ  shift 91
+	GE  shift 92
+	GT  shift 93
+	LE  shift 94
+	LT  shift 95
+	NE  shift 96
+	.  error
+
+
+state 77
+	Exit : Cond . RARR NAME LPAR Args RPAR NAME  (9)
+
+	RARR  shift 97
+	.  error
+
+
+state 78
+	Stat : Public COLON NAME . ASSIGN REVEAL Secret NAME  (44)
+
+	ASSIGN  shift 98
+	.  error
+
+
+state 79
+	Stat : Secret COLON NAME . ASSIGN HIDE Public NAME  (45)
+
+	ASSIGN  shift 99
+	.  error
+
+
+state 80
+	Entry : NAME LPAR Args RPAR NAME LARR . Cond  (7)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 76
+	Cond  goto 100
+
+
+state 81
+	Args : Type Atom COMM Args .  (11)
+
+	.  reduce 11
+
+
+state 82
+	Stat : LPAR Args RPAR ASSIGN . CALL NAME LPAR Args RPAR  (42)
+	Stat : LPAR Args RPAR ASSIGN . UNCALL NAME LPAR Args RPAR  (43)
+
+	CALL  shift 101
+	UNCALL  shift 102
+	.  error
+
+
+state 83
+	Memory : Type LBRACKET Atom RBRACKET .  (31)
+
+	.  reduce 31
+
+
+state 84
+	Stat : Type NAME COMM Type . NAME ASSIGN NAME COMM NAME  (34)
+
+	NAME  shift 103
+	.  error
+
+
+state 85
+	Stat : Type Atom ASSIGN Atom .  (32)
+	Update : Atom . PLUS Operation  (48)
+	Update : Atom . MINUS Operation  (49)
+	Update : Atom . XOR Operation  (50)
+	Update : Atom . LSHIFT Operation  (51)
+	Update : Atom . RSHIFT Operation  (52)
+
+	LSHIFT  shift 104
+	MINUS  shift 105
+	PLUS  shift 106
+	RSHIFT  shift 107
+	XOR  shift 108
+	COLON  reduce 32
+	INT  reduce 32
+	LPAR  reduce 32
+	NAME  reduce 32
+	P16  reduce 32
+	P32  reduce 32
+	P64  reduce 32
+	P8  reduce 32
+	S16  reduce 32
+	S32  reduce 32
+	S64  reduce 32
+	S8  reduce 32
+
+
+state 86
+	Stat : Type Atom ASSIGN Update .  (33)
+
+	.  reduce 33
+
+
+state 87
+	Stat : Atom ASSIGN Memory ASSIGN . Atom  (41)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 109
+
+
+state 88
+	Operation : LPAR Atom . PLUS Atom RPAR  (54)
+	Operation : LPAR Atom . MINUS Atom RPAR  (55)
+	Operation : LPAR Atom . XOR Atom RPAR  (56)
+	Operation : LPAR Atom . LSHIFT Atom RPAR  (57)
+	Operation : LPAR Atom . RSHIFT Atom RPAR  (58)
+	Operation : LPAR Atom . TIMES Atom RPAR  (59)
+	Operation : LPAR Atom . DIV Atom RPAR  (60)
+	Operation : LPAR Atom . MOD Atom RPAR  (61)
+	Operation : LPAR Atom . AMPERSAND Atom RPAR  (62)
+	Operation : LPAR Atom . BAR Atom RPAR  (63)
+
+	AMPERSAND  shift 110
+	BAR  shift 111
+	DIV  shift 112
+	LSHIFT  shift 113
+	MINUS  shift 114
+	MOD  shift 115
+	PLUS  shift 116
+	RSHIFT  shift 117
+	TIMES  shift 118
+	XOR  shift 119
+	.  error
+
+
+state 89
+	Exit : END NAME . LPAR Args RPAR  (8)
+
+	LPAR  shift 120
+	.  error
+
+
+state 90
+	Exit : RARR NAME . LPAR Args RPAR  (10)
+
+	LPAR  shift 121
+	.  error
+
+
+state 91
+	Cond : Atom EQ . Atom  (25)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 122
+
+
+state 92
+	Cond : Atom GE . Atom  (30)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 123
+
+
+state 93
+	Cond : Atom GT . Atom  (29)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 124
+
+
+state 94
+	Cond : Atom LE . Atom  (28)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 125
+
+
+state 95
+	Cond : Atom LT . Atom  (27)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 126
+
+
+state 96
+	Cond : Atom NE . Atom  (26)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 127
+
+
+state 97
+	Exit : Cond RARR . NAME LPAR Args RPAR NAME  (9)
+
+	NAME  shift 128
+	.  error
+
+
+state 98
+	Stat : Public COLON NAME ASSIGN . REVEAL Secret NAME  (44)
+
+	REVEAL  shift 129
+	.  error
+
+
+state 99
+	Stat : Secret COLON NAME ASSIGN . HIDE Public NAME  (45)
+
+	HIDE  shift 130
+	.  error
+
+
+state 100
+	Entry : NAME LPAR Args RPAR NAME LARR Cond .  (7)
+
+	.  reduce 7
+
+
+state 101
+	Stat : LPAR Args RPAR ASSIGN CALL . NAME LPAR Args RPAR  (42)
+
+	NAME  shift 131
+	.  error
+
+
+state 102
+	Stat : LPAR Args RPAR ASSIGN UNCALL . NAME LPAR Args RPAR  (43)
+
+	NAME  shift 132
+	.  error
+
+
+state 103
+	Stat : Type NAME COMM Type NAME . ASSIGN NAME COMM NAME  (34)
+
+	ASSIGN  shift 133
+	.  error
+
+
+state 104
+	Update : Atom LSHIFT . Operation  (51)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 134
+
+
+state 105
+	Update : Atom MINUS . Operation  (49)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 135
+
+
+state 106
+	Update : Atom PLUS . Operation  (48)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 136
+
+
+state 107
+	Update : Atom RSHIFT . Operation  (52)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 137
+
+
+state 108
+	Update : Atom XOR . Operation  (50)
+
+	INT  shift 27
+	LPAR  shift 65
+	NAME  shift 29
+	.  error
+
+	Atom  goto 66
+	Operation  goto 138
+
+
+state 109
+	Stat : Atom ASSIGN Memory ASSIGN Atom .  (41)
+
+	.  reduce 41
+
+
+state 110
+	Operation : LPAR Atom AMPERSAND . Atom RPAR  (62)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 139
+
+
+state 111
+	Operation : LPAR Atom BAR . Atom RPAR  (63)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 140
+
+
+state 112
+	Operation : LPAR Atom DIV . Atom RPAR  (60)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 141
+
+
+state 113
+	Operation : LPAR Atom LSHIFT . Atom RPAR  (57)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 142
+
+
+state 114
+	Operation : LPAR Atom MINUS . Atom RPAR  (55)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 143
+
+
+state 115
+	Operation : LPAR Atom MOD . Atom RPAR  (61)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 144
+
+
+state 116
+	Operation : LPAR Atom PLUS . Atom RPAR  (54)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 145
+
+
+state 117
+	Operation : LPAR Atom RSHIFT . Atom RPAR  (58)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 146
+
+
+state 118
+	Operation : LPAR Atom TIMES . Atom RPAR  (59)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 147
+
+
+state 119
+	Operation : LPAR Atom XOR . Atom RPAR  (56)
+
+	INT  shift 27
+	NAME  shift 29
+	.  error
+
+	Atom  goto 148
+
+
+state 120
+	Exit : END NAME LPAR . Args RPAR  (8)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 149
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 121
+	Exit : RARR NAME LPAR . Args RPAR  (10)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 150
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 122
+	Cond : Atom EQ Atom .  (25)
+
+	.  reduce 25
+
+
+state 123
+	Cond : Atom GE Atom .  (30)
+
+	.  reduce 30
+
+
+state 124
+	Cond : Atom GT Atom .  (29)
+
+	.  reduce 29
+
+
+state 125
+	Cond : Atom LE Atom .  (28)
+
+	.  reduce 28
+
+
+state 126
+	Cond : Atom LT Atom .  (27)
+
+	.  reduce 27
+
+
+state 127
+	Cond : Atom NE Atom .  (26)
+
+	.  reduce 26
+
+
+state 128
+	Exit : Cond RARR NAME . LPAR Args RPAR NAME  (9)
+
+	LPAR  shift 151
+	.  error
+
+
+state 129
+	Stat : Public COLON NAME ASSIGN REVEAL . Secret NAME  (44)
+
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Secret  goto 152
+
+
+state 130
+	Stat : Secret COLON NAME ASSIGN HIDE . Public NAME  (45)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	.  error
+
+	Public  goto 153
+
+
+state 131
+	Stat : LPAR Args RPAR ASSIGN CALL NAME . LPAR Args RPAR  (42)
+
+	LPAR  shift 154
+	.  error
+
+
+state 132
+	Stat : LPAR Args RPAR ASSIGN UNCALL NAME . LPAR Args RPAR  (43)
+
+	LPAR  shift 155
+	.  error
+
+
+state 133
+	Stat : Type NAME COMM Type NAME ASSIGN . NAME COMM NAME  (34)
+
+	NAME  shift 156
+	.  error
+
+
+state 134
+	Update : Atom LSHIFT Operation .  (51)
+
+	.  reduce 51
+
+
+state 135
+	Update : Atom MINUS Operation .  (49)
+
+	.  reduce 49
+
+
+state 136
+	Update : Atom PLUS Operation .  (48)
+
+	.  reduce 48
+
+
+state 137
+	Update : Atom RSHIFT Operation .  (52)
+
+	.  reduce 52
+
+
+state 138
+	Update : Atom XOR Operation .  (50)
+
+	.  reduce 50
+
+
+state 139
+	Operation : LPAR Atom AMPERSAND Atom . RPAR  (62)
+
+	RPAR  shift 157
+	.  error
+
+
+state 140
+	Operation : LPAR Atom BAR Atom . RPAR  (63)
+
+	RPAR  shift 158
+	.  error
+
+
+state 141
+	Operation : LPAR Atom DIV Atom . RPAR  (60)
+
+	RPAR  shift 159
+	.  error
+
+
+state 142
+	Operation : LPAR Atom LSHIFT Atom . RPAR  (57)
+
+	RPAR  shift 160
+	.  error
+
+
+state 143
+	Operation : LPAR Atom MINUS Atom . RPAR  (55)
+
+	RPAR  shift 161
+	.  error
+
+
+state 144
+	Operation : LPAR Atom MOD Atom . RPAR  (61)
+
+	RPAR  shift 162
+	.  error
+
+
+state 145
+	Operation : LPAR Atom PLUS Atom . RPAR  (54)
+
+	RPAR  shift 163
+	.  error
+
+
+state 146
+	Operation : LPAR Atom RSHIFT Atom . RPAR  (58)
+
+	RPAR  shift 164
+	.  error
+
+
+state 147
+	Operation : LPAR Atom TIMES Atom . RPAR  (59)
+
+	RPAR  shift 165
+	.  error
+
+
+state 148
+	Operation : LPAR Atom XOR Atom . RPAR  (56)
+
+	RPAR  shift 166
+	.  error
+
+
+state 149
+	Exit : END NAME LPAR Args . RPAR  (8)
+
+	RPAR  shift 167
+	.  error
+
+
+state 150
+	Exit : RARR NAME LPAR Args . RPAR  (10)
+
+	RPAR  shift 168
+	.  error
+
+
+state 151
+	Exit : Cond RARR NAME LPAR . Args RPAR NAME  (9)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 169
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 152
+	Stat : Public COLON NAME ASSIGN REVEAL Secret . NAME  (44)
+
+	NAME  shift 170
+	.  error
+
+
+state 153
+	Stat : Secret COLON NAME ASSIGN HIDE Public . NAME  (45)
+
+	NAME  shift 171
+	.  error
+
+
+state 154
+	Stat : LPAR Args RPAR ASSIGN CALL NAME LPAR . Args RPAR  (42)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 172
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 155
+	Stat : LPAR Args RPAR ASSIGN UNCALL NAME LPAR . Args RPAR  (43)
+
+	P16  shift 15
+	P32  shift 16
+	P64  shift 17
+	P8  shift 18
+	S16  shift 19
+	S32  shift 20
+	S64  shift 21
+	S8  shift 22
+	.  error
+
+	Args  goto 173
+	Type  goto 24
+	Public  goto 25
+	Secret  goto 26
+
+
+state 156
+	Stat : Type NAME COMM Type NAME ASSIGN NAME . COMM NAME  (34)
+
+	COMM  shift 174
+	.  error
+
+
+state 157
+	Operation : LPAR Atom AMPERSAND Atom RPAR .  (62)
+
+	.  reduce 62
+
+
+state 158
+	Operation : LPAR Atom BAR Atom RPAR .  (63)
+
+	.  reduce 63
+
+
+state 159
+	Operation : LPAR Atom DIV Atom RPAR .  (60)
+
+	.  reduce 60
+
+
+state 160
+	Operation : LPAR Atom LSHIFT Atom RPAR .  (57)
+
+	.  reduce 57
+
+
+state 161
+	Operation : LPAR Atom MINUS Atom RPAR .  (55)
+
+	.  reduce 55
+
+
+state 162
+	Operation : LPAR Atom MOD Atom RPAR .  (61)
+
+	.  reduce 61
+
+
+state 163
+	Operation : LPAR Atom PLUS Atom RPAR .  (54)
+
+	.  reduce 54
+
+
+state 164
+	Operation : LPAR Atom RSHIFT Atom RPAR .  (58)
+
+	.  reduce 58
+
+
+state 165
+	Operation : LPAR Atom TIMES Atom RPAR .  (59)
+
+	.  reduce 59
+
+
+state 166
+	Operation : LPAR Atom XOR Atom RPAR .  (56)
+
+	.  reduce 56
+
+
+state 167
+	Exit : END NAME LPAR Args RPAR .  (8)
+
+	.  reduce 8
+
+
+state 168
+	Exit : RARR NAME LPAR Args RPAR .  (10)
+
+	.  reduce 10
+
+
+state 169
+	Exit : Cond RARR NAME LPAR Args . RPAR NAME  (9)
+
+	RPAR  shift 175
+	.  error
+
+
+state 170
+	Stat : Public COLON NAME ASSIGN REVEAL Secret NAME .  (44)
+
+	.  reduce 44
+
+
+state 171
+	Stat : Secret COLON NAME ASSIGN HIDE Public NAME .  (45)
+
+	.  reduce 45
+
+
+state 172
+	Stat : LPAR Args RPAR ASSIGN CALL NAME LPAR Args . RPAR  (42)
+
+	RPAR  shift 176
+	.  error
+
+
+state 173
+	Stat : LPAR Args RPAR ASSIGN UNCALL NAME LPAR Args . RPAR  (43)
+
+	RPAR  shift 177
+	.  error
+
+
+state 174
+	Stat : Type NAME COMM Type NAME ASSIGN NAME COMM . NAME  (34)
+
+	NAME  shift 178
+	.  error
+
+
+state 175
+	Exit : Cond RARR NAME LPAR Args RPAR . NAME  (9)
+
+	NAME  shift 179
+	.  error
+
+
+state 176
+	Stat : LPAR Args RPAR ASSIGN CALL NAME LPAR Args RPAR .  (42)
+
+	.  reduce 42
+
+
+state 177
+	Stat : LPAR Args RPAR ASSIGN UNCALL NAME LPAR Args RPAR .  (43)
+
+	.  reduce 43
+
+
+state 178
+	Stat : Type NAME COMM Type NAME ASSIGN NAME COMM NAME .  (34)
+
+	.  reduce 34
+
+
+state 179
+	Exit : Cond RARR NAME LPAR Args RPAR NAME .  (9)
+
+	.  reduce 9
+
+
+52 terminals, 18 nonterminals
+65 grammar rules, 180 states

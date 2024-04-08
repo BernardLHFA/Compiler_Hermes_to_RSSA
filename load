@@ -1,0 +1,6 @@
+load "Main";
+
+open Data Main;
+
+val _ = print "\nNow try \n\
+              \    parse \"example.cl\";\n\n";
