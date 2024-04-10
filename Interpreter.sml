@@ -6,12 +6,25 @@ struct
 
   val R = Data.R
 
-  val s8 = []
+  val s8 = Array.array(10, (limitZ 8 (int2h 0)))
+  val s16 = Array.array(10, (limitZ 16 (int2h 0)))
+  val s32 = Array.array(10, (limitZ 32 (int2h 0)))
+  val s64 = Array.array(10, (limitZ 64 (int2h 0)))
+  val p8 = Array.array(10, (limitZ 8 (int2h 0)))
+  val p16 = Array.array(10, (limitZ 16 (int2h 0)))
+  val p32 = Array.array(10, (limitZ 32 (int2h 0)))
+  val p64 = Array.array(10, (limitZ 64 (int2h 0)))
 
   datatype location = Variable of hex ref
                     (*| Array of int * hex array
                     | ArrayElement of int * hex array
                     | NullLocation*)
+  
+  (* get position of variable *)
+  fun get_Pos (s, p) = p
+
+  (* get name of variable *)
+  fun get_Var (s, p) = s
   
   (* lookup in environment *)
 
@@ -19,6 +32,14 @@ struct
         raise Error ("undeclared identifier" ^ x, pos)
     | lookup x ((y,v) :: env) pos =
         if x = y then v else lookup x env pos
+  
+  fun lookupG x [] pos b =
+        raise Error ("undeclared function " ^ x, pos)
+    | lookupG x ((v, (y, _), res) :: gamma) pos b = 
+        if v = b
+        then
+          if x = y then res else lookupG x gamma pos b
+        else lookupG x gamma pos b
 
   fun lookup2 x [] =
         raise Error ("undeclared identifier" ^ x, (0, 0))
@@ -28,12 +49,12 @@ struct
   fun rem_rho x [] = []
     | rem_rho x ((y, v) :: rho) =
         if x = y then rem_rho x rho else (y, v)::rem_rho x rho
-
-  (* get position of variable *)
-  fun get_Pos (s, p) = p
-
-  (* get name of variable *)
-  fun get_Var (s, p) = s
+  
+  fun rem_rho_Arg [] rho = []
+    | rem_rho_Arg (Data.ArgS(t, a):: arg) rho =
+        case a of
+          (Data.VarS(v)) => rem_rho_Arg arg (rem_rho (get_Var v) rho)
+        | (Data.CstS(_, _)) => rem_rho_Arg arg rho
 
   fun BinOp bop z v1 v2 p =
         case bop of
@@ -57,6 +78,117 @@ struct
         | "<<" => limitZ z (hShiftL64 v1 v2)
         | ">>" => limitZ z (hShiftR64 v1 v2)
         | _ => raise Error ("Simbol not allowed", p)
+  
+  fun MemBinOp bop z v1 v2 p =
+        case bop of
+          "+=" => limitZ z (hAdd64 v1 v2)
+        | "-=" => limitZ z (hSub64 v1 v2)
+        | "^=" => limitZ z (hXor64 v1 v2)
+        | "<<=" => limitZ z (hShiftL64 v1 v2)
+        | ">>=" => limitZ z (hShiftR64 v1 v2)
+        | _ => raise Error ("Simbol not allowed", p)
+  
+  fun new_rho [] [] rho p = []
+    | new_rho arg [] rho p = raise Error ("Arguments with different sizes", p)
+    | new_rho [] arg rho p = raise Error ("Arguments with different sizes", p)
+    | new_rho (Data.ArgS(Data.TypeS(_, t1), a1) :: argms) (Data.ArgS(Data.TypeS(_, t2), a2) :: args) rho p =
+        case a1 of
+          (Data.VarS(x)) =>
+            let
+              val z = case t1 of
+                        Data.u8 => 8
+                      | Data.u16 => 16
+                      | Data.u32 => 32
+                      | Data.u64 => 64
+            in
+              case a2 of
+                (Data.VarS(v)) =>
+                  let
+                    val loc = lookup (get_Var v) rho (get_Pos v)
+                  in
+                    ((get_Var x), loc)::new_rho argms args rho p
+                  end
+              | (Data.CstS(c, _)) =>
+                  ((get_Var x), ((int2h 64), Variable (ref (limitZ 64 (string2h c (0, 0))))))::new_rho argms args rho p
+            end
+        | (Data.CstS(c, _)) =>
+            case a2 of
+              (Data.CstS(c2, _)) =>
+                if c = c2
+                then new_rho argms args rho p
+                else raise Error ("Constants must be equal", p)
+            | (Data.VarS(v)) => raise Error ("Variable must be constant", p)
+
+  fun add_Args [] [] rho pos = rho
+    | add_Args [] nrho rho pos = raise Error ("Number of arguments is not correct", pos)
+    | add_Args arg [] rho pos = raise Error ("Number of arguments is not correct", pos)
+    | add_Args ((Data.ArgS(t, a)) :: arg) ((_, (z0, Variable loc)) :: nrho) rho pos =
+        case a of
+          (Data.VarS(v)) =>
+            add_Args arg nrho (rho@[((get_Var v), (z0, Variable loc))]) pos
+        | (Data.CstS(c, _)) =>
+            if (limitZ 64 (string2h c (0, 0))) = !loc
+            then add_Args arg nrho rho pos
+            else raise Error ("Constant must be equal to variable", pos)
+
+fun rho_return [] rho p = []
+    | rho_return ((Data.ArgS(t, a)) :: arg) rho p =
+        case a of
+          (Data.VarS(v)) =>
+            let
+              val loc = lookup (get_Var v) rho p
+            in
+              [((get_Var v), loc)]@(rho_return arg rho p)
+            end
+        | (Data.CstS(_, _)) => rho_return arg rho p
+  
+  fun do_TChange rho (Data.RevealS(t, a, p)) =
+        (case a of
+          (Data.VarS(v)) =>
+            let
+              val (z0, Variable loc) = lookup (get_Var v) rho p
+              val rho2 = rem_rho (get_Var v) rho
+            in
+              (rho2, z0, Variable loc)
+            end
+        | _ => raise Error ("Revealed variable can't be a constant", p))
+    | do_TChange rho (Data.HideS(t, a, p)) =
+        case a of
+          (Data.VarS(v)) =>
+            let
+              val (z0, Variable loc) = lookup (get_Var v) rho p
+              val rho2 = rem_rho (get_Var v) rho
+            in
+              (rho2, z0, Variable loc)
+            end
+        | _ => raise Error ("Hidden variable can't be a constant", p)
+  
+  fun do_M rho (Data.MemoryS(t, a, p)) =
+        case a of
+          (Data.VarS(v)) =>
+            let
+              val (_, Variable loc) = lookup (get_Var v) rho p
+            in
+              case t of
+                (Data.TypeS(Data.Secret, Data.u8)) => (s8, h2int (!loc), 8)
+              | (Data.TypeS(Data.Secret, Data.u16)) => (s16, h2int (!loc), 16)
+              | (Data.TypeS(Data.Secret, Data.u32)) => (s32, h2int (!loc), 32)
+              | (Data.TypeS(Data.Secret, Data.u64)) => (s64, h2int (!loc), 64)
+              | (Data.TypeS(Data.Public, Data.u8)) => (p8, h2int (!loc), 8)
+              | (Data.TypeS(Data.Public, Data.u16)) => (p16, h2int (!loc), 16)
+              | (Data.TypeS(Data.Public, Data.u32)) => (p32, h2int (!loc), 32)
+              | (Data.TypeS(Data.Public, Data.u64)) => (p64, h2int (!loc), 64)
+            end
+        | (Data.CstS(c, _)) =>
+            case t of
+              (Data.TypeS(Data.Secret, Data.u8)) => (s8, valOf (Int.fromString c), 8)
+            | (Data.TypeS(Data.Secret, Data.u16)) => (s16, valOf (Int.fromString c), 16)
+            | (Data.TypeS(Data.Secret, Data.u32)) => (s32, valOf (Int.fromString c), 32)
+            | (Data.TypeS(Data.Secret, Data.u64)) => (s64, valOf (Int.fromString c), 64)
+            | (Data.TypeS(Data.Public, Data.u8)) => (p8, valOf (Int.fromString c), 8)
+            | (Data.TypeS(Data.Public, Data.u16)) => (p16, valOf (Int.fromString c), 16)
+            | (Data.TypeS(Data.Public, Data.u32)) => (p32, valOf (Int.fromString c), 32)
+            | (Data.TypeS(Data.Public, Data.u64)) => (p64, valOf (Int.fromString c), 64)
 
   fun do_O rho (Data.SimOp2S(a)) =
         (case a of
@@ -156,12 +288,102 @@ struct
                 if c = c2
                 then do_S gamma rho s
                 else raise Error ("Constants are not equal", p)))
-    | do_S gamma rho (Data.DAssignS(t1, a1, t2, a2, a3, a4, p) :: s) = do_S gamma rho s
-    | do_S gamma rho (Data.MemOp2S(st, m, e, p) :: s) = do_S gamma rho s
-    | do_S gamma rho (Data.MemSwapS(m1, m2, p) :: s) = do_S gamma rho s
-    | do_S gamma rho (Data.SwapS(a1, m, a2, p) :: s) = do_S gamma rho s
-    | do_S gamma rho (Data.AssignArgS(a, c, p) :: s) = do_S gamma rho s
-    | do_S gamma rho (Data.TAssignS(t, a, tc, p) :: s) = do_S gamma rho s
+    | do_S gamma rho (Data.DAssignS(t1, a1, t2, a2, a3, a4, p) :: s) =
+        (case (a3, a4) of
+          (Data.VarS(v1), Data.VarS(v2)) =>
+            let
+              val (z1, Variable loc1) = lookup (get_Var v1) rho p
+              val (z2, Variable loc2) = lookup (get_Var v2) rho p
+              val rho2 = rem_rho (get_Var v1) rho
+              val rho3 = rem_rho (get_Var v2) rho2
+            in
+              case (a1, a2) of
+                (Data.VarS(v3), Data.VarS(v4)) =>
+                  do_S gamma (rho3@[((get_Var v3), (z1, Variable loc1)), ((get_Var v4), (z2, Variable loc2))]) s
+              | _ => raise Error ("Constants are not allowed", p)
+            end
+        | _ => raise Error ("Constants are not allowed", p))
+    | do_S gamma rho (Data.MemOp2S(st, m, e, p) :: s) =
+        let
+          val (Variable loc) = do_O rho e
+          val (mem, i, z0) = do_M rho m
+          val x = MemBinOp st z0 (Array.sub(mem, i)) (!loc) p
+        in
+          Array.update(mem, i, x) ;
+          do_S gamma rho s
+        end
+    | do_S gamma rho (Data.MemSwapS(m1, m2, p) :: s) = 
+        let
+          val (mem1, i1, z1) = do_M rho m1
+          val (mem2, i2, z2) = do_M rho m2
+          val x1 = Array.sub(mem1, i1)
+          val x2 = Array.sub(mem2, i2)
+        in
+          Array.update(mem1, i1, x2) ;
+          Array.update(mem2, i2, x1) ;
+          do_S gamma rho s
+        end
+    | do_S gamma rho (Data.SwapS(a1, m, a2, p) :: s) = 
+        let
+          val (mem, i, z1) = do_M rho m
+          val x = Array.sub(mem, i)
+        in
+          case a2 of
+            (Data.VarS(v2)) =>
+              let
+                val (z0, Variable loc) = lookup (get_Var v2) rho p
+                val rho2 = rem_rho (get_Var v2) rho
+              in
+                Array.update(mem, i, !loc);
+                case a1 of
+                  (Data.VarS(v1)) =>
+                    do_S gamma (rho2@[((get_Var v1), (int2h z1, Variable (ref  x)))]) s
+                | (Data.CstS(c, _)) =>
+                    if (limitZ 64 (string2h c (0, 0))) = x
+                    then do_S gamma rho2 s
+                    else raise Error ("Constant isn't equal to memory", p)
+              end
+          | (Data.CstS(c, _)) =>
+              (Array.update(mem, i, (limitZ z1 (string2h c (0, 0)))) ;
+              case a1 of
+                (Data.VarS(v1)) =>
+                  do_S gamma (rho@[((get_Var v1), (int2h z1, Variable (ref x)))]) s
+              | (Data.CstS(c2, _)) =>
+                  if (limitZ 64 (string2h c2 (0, 0))) = x
+                  then do_S gamma rho s
+                  else raise Error ("Constant isn't equal to memory", p))
+        end
+    | do_S gamma rho (Data.AssignArgS(arg, c, p) :: s) = 
+        let
+          val (nrho, rho2) = do_Call gamma rho c
+          val rho3 = add_Args arg nrho rho2 p
+        in
+          do_S gamma rho3 s
+        end
+    | do_S gamma rho (Data.TAssignS(t, a, tc, p) :: s) = 
+        let
+          val (rho2, z0, Variable loc) = do_TChange rho tc
+        in
+          case a of
+            (Data.VarS(v)) =>
+              do_S gamma (rho2@[((get_Var v), (z0, Variable loc))]) s
+          | _ => raise Error ("Variable can't be constant during a type change", p)
+        end
+  
+  and do_Call gamma rho (Data.CallS(f, arg, p)) =
+        case f of
+          (Data.VarS(v)) =>
+            let
+              val (argm, ss) = lookupG (get_Var v) gamma p true
+              val (argf, _) = lookupG (get_Var v) gamma p false
+              val nrho = new_rho argm arg rho p
+              val nrho2 = do_S gamma nrho ss
+              val nrho3 = rho_return argf nrho2 p
+              val rho2 = rem_rho_Arg arg rho
+            in
+              (nrho3, rho2)
+            end
+        | (Data.CstS(c, _)) => raise Error ("Name of function cannot be a constant", p)
 
   fun get_Args [] = []
     | get_Args (Data.ArgS(t, a) :: args) =
@@ -225,7 +447,7 @@ struct
           val gamma2 = do_Exit ex ss
           val gamma = gamma1@gamma2
         in
-          gamma :: do_G ps
+          gamma@do_G ps
         end
   
   fun do_P_backwards [] backwards gamma = raise Error ("Main function doesn't have correct end statement", (0, 0))

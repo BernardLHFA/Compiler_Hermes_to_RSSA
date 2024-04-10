@@ -163,17 +163,23 @@ struct
   
   (* check if reveal and hide functions are valid *)
   fun check_TChange rho (Data.RevealS(t, a, p)) =
-        let
-          val rho2 = check_A_rem rho a
-        in
-          (t, rho2, true)
-        end
+        if t = get_Type a rho
+        then
+          let
+            val rho2 = check_A_rem rho a
+          in
+            (t, rho2, true)
+          end
+        else raise Error ("Mismatched types", p)
     | check_TChange rho (Data.HideS(t, a, p)) =
-        let
-          val rho2 = check_A_rem rho a
-        in
-          (t, rho2, false)
-        end
+        if t = get_Type a rho
+        then
+          let
+            val rho2 = check_A_rem rho a
+          in
+            (t, rho2, false)
+          end
+        else raise Error ("Mismatched types", p)
 
   (* check if call and uncall functions are valid*)
   fun check_C gamma rho (Data.CallS(a, args, p)) =
