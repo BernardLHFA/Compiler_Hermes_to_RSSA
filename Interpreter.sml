@@ -88,6 +88,16 @@ struct
         | ">>=" => limitZ z (hShiftR64 v1 v2)
         | _ => raise Error ("Simbol not allowed", p)
   
+  fun BoolBinOp bop v1 v2 p =
+        case bop of
+          "==" => if hEqual64 v1 v2 then hMax64 else []
+        | "!=" => if hEqual64 v1 v2 then [] else hMax64
+        | "<" => if hLess64 v1 v2 then hMax64 else []
+        | "<=" => if hLeq64 v1 v2 then hMax64 else []
+        | ">" => if hGreater64 v1 v2 then hMax64 else []
+        | "=>" => if hGeq64 v1 v2 then hMax64 else []
+        | _ => raise Error ("Simbol not allowed", p)
+  
   fun new_rho [] [] rho p = []
     | new_rho arg [] rho p = raise Error ("Arguments with different sizes", p)
     | new_rho [] arg rho p = raise Error ("Arguments with different sizes", p)
@@ -141,6 +151,140 @@ fun rho_return [] rho p = []
               [((get_Var v), loc)]@(rho_return arg rho p)
             end
         | (Data.CstS(_, _)) => rho_return arg rho p
+  
+  fun get_Args [] = []
+    | get_Args (Data.ArgS(t, a) :: args) =
+        case a of
+          (Data.VarS(v)) => (t, (get_Var v))::get_Args args
+        | (Data.CstS(_, _)) => get_Args args
+
+  fun rho_new_Args [] [] p = []
+    | rho_new_Args [] rho p = raise Error ("Number of arguments inconsistent", p)
+    | rho_new_Args args [] p = raise Error ("Number of arguments inconsistent", p)
+    | rho_new_Args (Data.ArgS(Data.TypeS(_, t), a) :: args) ((y,(z0, Variable loc)) :: rho) p = 
+        case a of
+          (Data.VarS(x)) =>
+            let
+              val z = case t of
+                        Data.u8 => 8
+                      | Data.u16 => 16
+                      | Data.u32 => 32
+                      | Data.u64 => 64
+            in
+              if (int2h z) = z0
+              then ((get_Var x), (z0, Variable loc))::rho_new_Args args rho p
+              else raise Error ("Variables between jumps of different sizes", (get_Pos x))
+            end
+        | (Data.CstS(s, p)) => rho_new_Args args rho p
+
+  fun rho_Args [] = []
+    | rho_Args (Data.ArgS(Data.TypeS(_, t), a) :: args) = 
+        case a of
+          (Data.VarS(x)) =>
+            let
+              val z = case t of
+                        Data.u8 => 8
+                      | Data.u16 => 16
+                      | Data.u32 => 32
+                      | Data.u64 => 64
+              val str = valOf (TextIO.inputLine TextIO.stdIn)
+              val v = limitZ z (string2h str (0,0))
+              val loc = (int2h z, Variable (ref v))
+            in
+              ((get_Var x), loc)::rho_Args args
+            end
+        | (Data.CstS(s, p)) => rho_Args args
+  
+  fun rho_exit (Data.EndS(f, args, p)) rho = rho_new_Args args rho p
+    | rho_exit (Data.UncondExitS(f, args, p)) rho = rho_new_Args args rho p
+    | rho_exit (Data.CondExitS(c, f1, f2, args, p)) rho = rho_new_Args args rho p
+
+  fun start_rho_exit (Data.EndS(f, args, p)) = rho_Args args
+    | start_rho_exit (Data.UncondExitS(f, args, p)) = raise Error ("Starting exit must be an end", p)
+    | start_rho_exit (Data.CondExitS(c, f1, f2, args, p)) = raise Error ("Starting exit must be an end", p)
+  
+  fun rho_entry (Data.BeginS(f, args, p)) rho = rho_new_Args args rho p
+    | rho_entry (Data.UncondEntryS(f, args, p)) rho = rho_new_Args args rho p
+    | rho_entry (Data.CondEntryS(c, f1, f2, args, p)) rho = rho_new_Args args rho p
+
+  fun start_rho_entry (Data.BeginS(f, args, p)) = rho_Args args
+    | start_rho_entry (Data.UncondEntryS(f, args, p)) = raise Error ("Starting entry must be an begin", p)
+    | start_rho_entry (Data.CondEntryS(c, f1, f2, args, p)) = raise Error ("Starting entry must be an begin", p)
+
+  fun get_Block_EnEx f [] b p = raise Error("Variable is not the name of a function", p)
+    | get_Block_EnEx f (Data.BlockS(en, ss, ex, p) :: prg) b p =
+        if b
+        then
+          case en of
+            (Data.BeginS(f1, arg, pos)) =>
+              if (get_Var f) = (get_Var f1)
+              then Data.BlockS(en, ss, ex, p)
+              else get_Block_EnEx f prg b p
+          | _ => get_Block_EnEx f prg b p
+        else
+          case ex of
+            (Data.EndS(f1, arg, pos)) =>
+              if (get_Var f) = (get_Var f1)
+              then Data.BlockS(en, ss, ex, p)
+              else get_Block_EnEx f prg b p
+          | _ => get_Block_EnEx f prg b p
+
+  fun get_Block f [] b p = raise Error("Jump not found in program", p)
+    | get_Block f (Data.BlockS(en, ss, ex, p) :: prg) b p =
+        if b
+        then
+          case en of
+            (Data.BeginS(s, arg, pos)) => get_Block f prg b p
+          | (Data.UncondEntryS(s, arg, pos)) =>
+              if (get_Var f) = (get_Var s)
+              then Data.BlockS(en, ss, ex, p)
+              else get_Block f prg b p
+          | (Data.CondEntryS(c, f1, f2, arg, p)) =>
+              if (get_Var f) = (get_Var f1) orelse (get_Var f) = (get_Var f2)
+              then Data.BlockS(en, ss, ex, p)
+              else get_Block f prg b p
+        else
+          case ex of
+            (Data.EndS(s, arg, pos)) => get_Block f prg b p
+          | (Data.UncondExitS(s, arg, pos)) =>
+              if (get_Var f) = (get_Var s)
+              then Data.BlockS(en, ss, ex, p)
+              else get_Block f prg b p
+          | (Data.CondExitS(c, f1, f2, arg, p)) =>
+              if (get_Var f) = (get_Var f1) orelse (get_Var f) = (get_Var f2)
+              then Data.BlockS(en, ss, ex, p)
+              else get_Block f prg b p
+  
+  fun eval_Cond (Data.BoolOp2S(opr, a1, a2, p)) rho =
+        case (a1, a2) of
+          (Data.VarS(v1), Data.VarS(v2)) =>
+            let
+              val (z1, Variable loc1) = lookup (get_Var v1) rho p
+              val (z2, Variable loc2) = lookup (get_Var v2) rho p
+              val lambda = BoolBinOp opr (!loc1) (!loc2) p
+            in
+              lambda = hMax64
+            end
+        | (Data.VarS(v), Data.CstS(c, _)) =>
+            let
+              val (z0, Variable loc) = lookup (get_Var v) rho p
+              val lambda = BoolBinOp opr (!loc) (limitZ 64 (string2h c (0, 0))) p
+            in
+              lambda = hMax64
+            end
+        | (Data.CstS(c, _), Data.VarS(v)) =>
+            let
+              val (z0, Variable loc) = lookup (get_Var v) rho p
+              val lambda = BoolBinOp opr (limitZ 64 (string2h c (0, 0))) (!loc) p
+            in
+              lambda = hMax64
+            end
+        | (Data.CstS(c1, _), Data.CstS(c2, _)) =>
+            let
+              val lambda = BoolBinOp opr (limitZ 64 (string2h c1 (0, 0))) (limitZ 64 (string2h c2 (0, 0))) p
+            in
+              lambda = hMax64
+            end
   
   fun do_TChange rho (Data.RevealS(t, a, p)) =
         (case a of
@@ -252,20 +396,20 @@ fun rho_return [] rho p = []
               end
         end
 
-  fun do_S gamma rho [] = rho
-    | do_S gamma rho (Data.AssignS(t, a, u, p) :: s) =
+  fun do_S gamma rho [] oprg = rho
+    | do_S gamma rho (Data.AssignS(t, a, u, p) :: s) oprg =
         let
           val (rho2, z0, Variable loc) = do_U rho u
         in
           case a of
             (Data.VarS(v)) =>
-              do_S gamma (rho2@[((get_Var v), (z0, Variable loc))]) s
+              do_S gamma (rho2@[((get_Var v), (z0, Variable loc))]) s oprg
           | (Data.CstS(c, _)) =>
               if (limitZ 64 (string2h c (0, 0))) = !loc
-              then do_S gamma rho2 s
+              then do_S gamma rho2 s oprg
               else raise Error ("Operation does not equal the desired constant", p)
         end
-    | do_S gamma rho (Data.Assign2S(t, a1, a2, p) :: s) =
+    | do_S gamma rho (Data.Assign2S(t, a1, a2, p) :: s) oprg =
         (case a2 of
           (Data.VarS(v)) =>
             let
@@ -274,21 +418,21 @@ fun rho_return [] rho p = []
             in
               (case a1 of
                 (Data.VarS(v2)) =>
-                  do_S gamma (rho2@[((get_Var v2), (z0, Variable loc))]) s
+                  do_S gamma (rho2@[((get_Var v2), (z0, Variable loc))]) s oprg
               | (Data.CstS(c, _)) =>
                   if (limitZ 64 (string2h c (0, 0))) = !loc
-                  then do_S gamma rho2 s
+                  then do_S gamma rho2 s oprg
                   else raise Error ("Variable should be equal to constant", p))
             end
         | (Data.CstS(c, _)) =>
             (case a1 of
               (Data.VarS(v2)) =>
-                do_S gamma (rho@[((get_Var v2), ((int2h 64), Variable (ref (limitZ 64 (string2h c (0, 0))))))]) s
+                do_S gamma (rho@[((get_Var v2), ((int2h 64), Variable (ref (limitZ 64 (string2h c (0, 0))))))]) s oprg
             | (Data.CstS(c2, _)) =>
                 if c = c2
-                then do_S gamma rho s
+                then do_S gamma rho s oprg
                 else raise Error ("Constants are not equal", p)))
-    | do_S gamma rho (Data.DAssignS(t1, a1, t2, a2, a3, a4, p) :: s) =
+    | do_S gamma rho (Data.DAssignS(t1, a1, t2, a2, a3, a4, p) :: s) oprg =
         (case (a3, a4) of
           (Data.VarS(v1), Data.VarS(v2)) =>
             let
@@ -299,20 +443,20 @@ fun rho_return [] rho p = []
             in
               case (a1, a2) of
                 (Data.VarS(v3), Data.VarS(v4)) =>
-                  do_S gamma (rho3@[((get_Var v3), (z1, Variable loc1)), ((get_Var v4), (z2, Variable loc2))]) s
+                  do_S gamma (rho3@[((get_Var v3), (z1, Variable loc1)), ((get_Var v4), (z2, Variable loc2))]) s oprg
               | _ => raise Error ("Constants are not allowed", p)
             end
         | _ => raise Error ("Constants are not allowed", p))
-    | do_S gamma rho (Data.MemOp2S(st, m, e, p) :: s) =
+    | do_S gamma rho (Data.MemOp2S(st, m, e, p) :: s) oprg =
         let
           val (Variable loc) = do_O rho e
           val (mem, i, z0) = do_M rho m
           val x = MemBinOp st z0 (Array.sub(mem, i)) (!loc) p
         in
           Array.update(mem, i, x) ;
-          do_S gamma rho s
+          do_S gamma rho s oprg
         end
-    | do_S gamma rho (Data.MemSwapS(m1, m2, p) :: s) = 
+    | do_S gamma rho (Data.MemSwapS(m1, m2, p) :: s) oprg = 
         let
           val (mem1, i1, z1) = do_M rho m1
           val (mem2, i2, z2) = do_M rho m2
@@ -321,9 +465,9 @@ fun rho_return [] rho p = []
         in
           Array.update(mem1, i1, x2) ;
           Array.update(mem2, i2, x1) ;
-          do_S gamma rho s
+          do_S gamma rho s oprg
         end
-    | do_S gamma rho (Data.SwapS(a1, m, a2, p) :: s) = 
+    | do_S gamma rho (Data.SwapS(a1, m, a2, p) :: s) oprg = 
         let
           val (mem, i, z1) = do_M rho m
           val x = Array.sub(mem, i)
@@ -337,100 +481,223 @@ fun rho_return [] rho p = []
                 Array.update(mem, i, !loc);
                 case a1 of
                   (Data.VarS(v1)) =>
-                    do_S gamma (rho2@[((get_Var v1), (int2h z1, Variable (ref  x)))]) s
+                    do_S gamma (rho2@[((get_Var v1), (int2h z1, Variable (ref  x)))]) s oprg
                 | (Data.CstS(c, _)) =>
                     if (limitZ 64 (string2h c (0, 0))) = x
-                    then do_S gamma rho2 s
+                    then do_S gamma rho2 s oprg
                     else raise Error ("Constant isn't equal to memory", p)
               end
           | (Data.CstS(c, _)) =>
               (Array.update(mem, i, (limitZ z1 (string2h c (0, 0)))) ;
               case a1 of
                 (Data.VarS(v1)) =>
-                  do_S gamma (rho@[((get_Var v1), (int2h z1, Variable (ref x)))]) s
+                  do_S gamma (rho@[((get_Var v1), (int2h z1, Variable (ref x)))]) s oprg
               | (Data.CstS(c2, _)) =>
                   if (limitZ 64 (string2h c2 (0, 0))) = x
-                  then do_S gamma rho s
+                  then do_S gamma rho s oprg
                   else raise Error ("Constant isn't equal to memory", p))
         end
-    | do_S gamma rho (Data.AssignArgS(arg, c, p) :: s) = 
+    | do_S gamma rho (Data.AssignArgS(arg, c, p) :: s) oprg = 
         let
-          val (nrho, rho2) = do_Call gamma rho c
+          val (nrho, rho2) = do_Call gamma rho c oprg
           val rho3 = add_Args arg nrho rho2 p
         in
-          do_S gamma rho3 s
+          do_S gamma rho3 s oprg
         end
-    | do_S gamma rho (Data.TAssignS(t, a, tc, p) :: s) = 
+    | do_S gamma rho (Data.TAssignS(t, a, tc, p) :: s) oprg = 
         let
           val (rho2, z0, Variable loc) = do_TChange rho tc
         in
           case a of
             (Data.VarS(v)) =>
-              do_S gamma (rho2@[((get_Var v), (z0, Variable loc))]) s
+              do_S gamma (rho2@[((get_Var v), (z0, Variable loc))]) s oprg
           | _ => raise Error ("Variable can't be constant during a type change", p)
         end
   
-  and do_Call gamma rho (Data.CallS(f, arg, p)) =
-        case f of
+  and do_Call gamma rho (Data.CallS(f, arg, p)) oprg =
+        (case f of
           (Data.VarS(v)) =>
             let
               val (argm, ss) = lookupG (get_Var v) gamma p true
               val (argf, _) = lookupG (get_Var v) gamma p false
+              val block = get_Block_EnEx v oprg true p
               val nrho = new_rho argm arg rho p
-              val nrho2 = do_S gamma nrho ss
+              val nrho2 = do_main_extra block false gamma oprg nrho
               val nrho3 = rho_return argf nrho2 p
               val rho2 = rem_rho_Arg arg rho
             in
               (nrho3, rho2)
             end
-        | (Data.CstS(c, _)) => raise Error ("Name of function cannot be a constant", p)
-
-  fun get_Args [] = []
-    | get_Args (Data.ArgS(t, a) :: args) =
-        case a of
-          (Data.VarS(v)) => (t, (get_Var v))::get_Args args
-        | (Data.CstS(_, _)) => get_Args args
-
-  fun rho_Args [] = []
-    | rho_Args (Data.ArgS(Data.TypeS(_, t), a) :: args) = 
-        case a of
-          (Data.VarS(x)) =>
+        | (Data.CstS(c, _)) => raise Error ("Name of function cannot be a constant", p))
+    | do_Call gamma rho (Data.UncallS(f, arg, p)) oprg =
+        (case f of
+          (Data.VarS(v)) =>
             let
-              val z = case t of
-                        Data.u8 => 8
-                      | Data.u16 => 16
-                      | Data.u32 => 32
-                      | Data.u64 => 64
-              val str = valOf (TextIO.inputLine TextIO.stdIn)
-              val v = limitZ z (string2h str (0,0))
-              val loc = (int2h z, Variable (ref v))
+              val (argm, ss) = lookupG (get_Var v) gamma p false
+              val (argf, _) = lookupG (get_Var v) gamma p true
+              val block = get_Block_EnEx v oprg false p
+              val nrho = new_rho argm arg rho p
+              val nrho2 = do_main_backwards_extra block true gamma oprg nrho
+              val nrho3 = rho_return argf nrho2 p
+              val rho2 = rem_rho_Arg arg rho
             in
-              ((get_Var x), loc)::rho_Args args
+              (nrho3, rho2)
             end
-        | (Data.CstS(s, p)) => rho_Args args
+        | (Data.CstS(c, _)) => raise Error ("Name of function cannot be a constant", p))
 
-  fun start_rho_exit (Data.EndS(f, args, p)) = rho_Args args
-    | start_rho_exit (Data.UncondExitS(f, args, p)) = raise Error ("Starting exit must be an end", p)
-    | start_rho_exit (Data.CondExitS(c, f1, f2, args, p)) = raise Error ("Starting exit must be an end", p)
-  
-  fun start_rho_entry (Data.BeginS(f, args, p)) = rho_Args args
-    | start_rho_entry (Data.UncondEntryS(f, args, p)) = raise Error ("Starting entry must be an begin", p)
-    | start_rho_entry (Data.CondEntryS(c, f1, f2, args, p)) = raise Error ("Starting entry must be an begin", p)
+  and do_B_extra (Data.BlockS(en, ss, ex, p)) backwards gamma rho oprg =
+        if backwards
+        then
+          let
+            val rho2 = rho_exit ex rho
+          in
+            do_S gamma rho2 ss oprg
+          end
+        else
+          let
+            val rho2 = rho_entry en rho
+          in
+            do_S gamma rho2 ss oprg
+          end
 
-  fun do_B (Data.BlockS(en, ss, ex, p)) backwards gamma =
+  and do_B (Data.BlockS(en, ss, ex, p)) backwards gamma oprg =
         if backwards
         then
           let
             val rho = start_rho_exit ex
           in
-            do_S gamma rho ss
+            do_S gamma rho ss oprg
           end
         else
           let
             val rho = start_rho_entry en
           in
-            do_S gamma rho ss
+            do_S gamma rho ss oprg
           end
+  
+  and do_main_backwards_extra (Data.BlockS(en, ss, ex, p)) backwards gamma oprg rho =
+        let
+          val rho2 = do_B_extra (Data.BlockS(en, (List.rev (List.map R ss)), ex, p)) backwards gamma rho oprg
+        in
+          case en of
+            (Data.BeginS(f, arg, p2)) => rho2
+          | (Data.UncondEntryS(f, arg, p2)) =>
+              let
+                val block = get_Block f oprg false p2
+                val nrho = rho_return arg rho2 p2
+              in
+                do_main_backwards_extra block backwards gamma oprg nrho
+              end
+          | (Data.CondEntryS(c, f1, f2, arg, p2)) =>
+              if eval_Cond c rho2
+              then
+                let
+                  val block = get_Block f1 oprg false p2
+                  val nrho = rho_return arg rho2 p2
+                in
+                  do_main_backwards_extra block backwards gamma oprg nrho
+                end
+              else 
+                let
+                  val block = get_Block f2 oprg false p2
+                  val nrho = rho_return arg rho2 p2
+                in
+                  do_main_backwards_extra block backwards gamma oprg nrho
+                end
+        end
+
+  and do_main_backwards (Data.BlockS(en, ss, ex, p)) backwards gamma oprg =
+        let
+          val rho = do_B (Data.BlockS(en, (List.rev (List.map R ss)), ex, p)) backwards gamma oprg
+        in
+          case en of
+            (Data.BeginS(f, arg, p2)) => rho
+          | (Data.UncondEntryS(f, arg, p2)) =>
+              let
+                val block = get_Block f oprg false p2
+                val nrho = rho_return arg rho p2
+              in
+                do_main_backwards_extra block backwards gamma oprg nrho
+              end
+          | (Data.CondEntryS(c, f1, f2, arg, p2)) =>
+              if eval_Cond c rho
+              then
+                let
+                  val block = get_Block f1 oprg false p2
+                  val nrho = rho_return arg rho p2
+                in
+                  do_main_backwards_extra block backwards gamma oprg nrho 
+                end
+              else 
+                let
+                  val block = get_Block f2 oprg false p2
+                  val nrho = rho_return arg rho p2
+                in
+                  do_main_backwards_extra block backwards gamma oprg nrho
+                end
+        end
+  
+  and do_main_extra (Data.BlockS(en, ss, ex, p)) backwards gamma oprg rho =
+        let
+          val rho2 = do_B_extra (Data.BlockS(en, ss, ex, p)) backwards gamma rho oprg
+        in
+          case ex of
+            (Data.EndS(f, arg, p2)) => rho2
+          | (Data.UncondExitS(f, arg, p2)) =>
+              let
+                val block = get_Block f oprg true p2
+                val nrho = rho_return arg rho2 p2
+              in
+                do_main_extra block backwards gamma oprg nrho
+              end
+          | (Data.CondExitS(c, f1, f2, arg, p2)) =>
+              if eval_Cond c rho2
+              then
+                let
+                  val block = get_Block f1 oprg true p2
+                  val nrho = rho_return arg rho2 p2
+                in
+                  do_main_extra block backwards gamma oprg nrho
+                end
+              else 
+                let
+                  val block = get_Block f2 oprg true p2
+                  val nrho = rho_return arg rho2 p2
+                in
+                  do_main_extra block backwards gamma oprg nrho
+                end
+        end
+
+  and do_main (Data.BlockS(en, ss, ex, p)) backwards gamma oprg =
+        let
+          val rho = do_B (Data.BlockS(en, ss, ex, p)) backwards gamma oprg
+        in
+          case ex of
+            (Data.EndS(f, arg, p2)) => rho
+          | (Data.UncondExitS(f, arg, p2)) =>
+              let
+                val block = get_Block f oprg true p2
+                val nrho = rho_return arg rho p2
+              in
+                do_main_extra block backwards gamma oprg nrho
+              end
+          | (Data.CondExitS(c, f1, f2, arg, p2)) =>
+              if eval_Cond c rho
+              then
+                let
+                  val block = get_Block f1 oprg true p2
+                  val nrho = rho_return arg rho p2
+                in
+                  do_main_extra block backwards gamma oprg nrho 
+                end
+              else 
+                let
+                  val block = get_Block f2 oprg true p2
+                  val nrho = rho_return arg rho p2
+                in
+                  do_main_extra block backwards gamma oprg nrho
+                end
+        end
 
   fun do_Exit (Data.EndS(f, args, p)) ss = [(false, f, (args, ss))]
     | do_Exit (Data.UncondExitS(f, args, p)) ss = [(false, f, (args, ss))]
@@ -450,14 +717,14 @@ fun rho_return [] rho p = []
           gamma@do_G ps
         end
   
-  fun do_P_backwards [] backwards gamma = raise Error ("Main function doesn't have correct end statement", (0, 0))
-    | do_P_backwards (Data.BlockS(en, ss, ex, p) :: ps) backwards gamma =
+  fun do_P_backwards [] backwards gamma oprg = raise Error ("Main function doesn't have correct end statement", (0, 0))
+    | do_P_backwards (Data.BlockS(en, ss, ex, p) :: ps) backwards gamma oprg =
         case ex of
           (Data.EndS(f, args, p2)) =>
             if (get_Var f) = "main"
-            then do_B (Data.BlockS(en, (List.rev (List.map R ss)), ex, p)) backwards gamma
-            else do_P_backwards ps backwards gamma
-        | _ => do_P_backwards ps backwards gamma
+            then do_main_backwards (Data.BlockS(en, ss, ex, p)) backwards gamma oprg
+            else do_P_backwards ps backwards gamma oprg
+        | _ => do_P_backwards ps backwards gamma oprg
 
   fun get_Args_final_end [] = raise Error ("Main function doesn't have correct end statement", (0, 0))
     | get_Args_final_end (Data.BlockS(en, ss, ex, p) :: ps) = 
@@ -468,23 +735,23 @@ fun rho_return [] rho p = []
             else get_Args_final_end ps
         | _ => get_Args_final_end ps
 
-  fun do_P [] backwards gamma = raise Error ("No Main function", (0, 0))
-    | do_P (Data.BlockS(en, ss, ex, p) :: ps) backwards gamma =
+  fun do_P [] backwards gamma oprg = raise Error ("No Main function", (0, 0))
+    | do_P (Data.BlockS(en, ss, ex, p) :: ps) backwards gamma oprg =
         if backwards
         then
           case en of
             (Data.BeginS(f, args, p2)) =>
               if (get_Var f) = "main"
-              then ((do_P_backwards (Data.BlockS(en, ss, ex, p) :: ps) backwards gamma), (get_Args args))
-              else do_P ps backwards gamma
-          | _ => do_P ps backwards gamma
+              then ((do_P_backwards (Data.BlockS(en, ss, ex, p) :: ps) backwards gamma oprg), (get_Args args))
+              else do_P ps backwards gamma oprg
+          | _ => do_P ps backwards gamma oprg
         else
           case en of
             (Data.BeginS(f, args, p2)) =>
               if (get_Var f) = "main"
-              then ((do_B (Data.BlockS(en, ss, ex, p)) backwards gamma), (get_Args_final_end (Data.BlockS(en, ss, ex, p) :: ps)))
-              else do_P ps backwards gamma
-          | _ => do_P ps backwards gamma
+              then ((do_main (Data.BlockS(en, ss, ex, p)) backwards gamma oprg), (get_Args_final_end (Data.BlockS(en, ss, ex, p) :: ps)))
+              else do_P ps backwards gamma oprg
+          | _ => do_P ps backwards gamma oprg
   
   (* print parameter *)
   fun printPar rho (t, x) =
@@ -497,7 +764,7 @@ fun rho_return [] rho p = []
   fun run (Data.ProgramS(prg)) backwards = 
     let
       val gamma = do_G prg
-      val (rho, args) = do_P prg backwards gamma
+      val (rho, args) = do_P prg backwards gamma prg
     in
       List.app (printPar rho) args
       (*do_P prg backwards gamma*)
