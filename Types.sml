@@ -20,11 +20,11 @@ struct
   fun isIn x xs = List.exists (fn y => x = y) xs
 
   (* remove a variable from the environment*)
-  fun remove_rho a [] = []
-    | remove_rho a ((t, b) :: rho) =
+  fun remove_rho a [] p = raise Error ("Variable " ^ a ^ " is not defined in the environment", p)
+    | remove_rho a ((t, b) :: rho) p =
         if a = b
-        then remove_rho a rho
-        else [(t, b)]@(remove_rho a rho)
+        then rho
+        else [(t, b)]@(remove_rho a rho p)
 
   (* get name of variable *)
   fun get_Var (s, p) = s
@@ -61,7 +61,7 @@ struct
   fun remove_Args [] rho = rho
     | remove_Args ((Data.ArgS(t, a) :: args)) rho =
         case a of
-          (Data.VarS(v)) => remove_Args args (remove_rho (get_Var v) rho)
+          (Data.VarS(v)) => remove_Args args (remove_rho (get_Var v) rho (get_Pos v))
         | (Data.CstS(_, _)) => remove_Args args rho
   
   (* get list of arguments, used in entry and exit blocks *)
@@ -73,13 +73,9 @@ struct
 
   (* get the call or uncall function *)
   fun get_Call_function (Data.CallS(f, arg, p)) = 
-        (case f of
-          (Data.VarS(v)) => ((get_Var v), false)
-        | (Data.CstS(_, p2)) => raise Error ("Function variable cannont be a constant", p2))
+        ((get_Var f), false)
     | get_Call_function (Data.UncallS(f, arg, p)) = 
-        case f of
-          (Data.VarS(v)) => ((get_Var v), true)
-        | (Data.CstS(_, p2)) => raise Error ("Function variable cannont be a constant", p2)
+        ((get_Var f), true)
 
   (* get type of variable *)
   fun get_Type (Data.CstS(s, p)) rho = Data.TypeS(Data.Public, Data.u64)
@@ -105,7 +101,7 @@ struct
   fun check_A_rem rho (Data.CstS(s, p)) = rho
     | check_A_rem rho (Data.VarS(v)) =
         if lookup (get_Var v) rho
-        then remove_rho (get_Var v) rho
+        then remove_rho (get_Var v) rho (get_Pos v)
         else raise Error ("Variable " ^ (get_Var v) ^ " not defined" , (get_Pos v))
 
   (* check if condition is valid *)
@@ -158,7 +154,7 @@ struct
                 then true
                 else false
             | Data.CstS(_, p) => true)
-          else raise Error ("Type of index not appropriate", p)
+          else raise Error ("Type of index not u64", p)
         end
   
   (* check if reveal and hide functions are valid *)
@@ -183,39 +179,33 @@ struct
 
   (* check if call and uncall functions are valid*)
   fun check_C gamma rho (Data.CallS(a, args, p)) =
-        (case a of
-          Data.VarS(v) => 
-            if lookup_G (get_Var v) gamma
-            then 
-              let
-                val args2 = get_Args (get_Var v) true  p gamma 
-              in
-                if (length args) = (length args2)
-                then
-                  if check_Type_Args args args2
-                  then remove_Args args rho
-                  else raise Error ("Arguments don't respect the types", p)
-                else raise Error ("Length of arguments is not respected", p)
-              end
-            else raise Error ("Function " ^ (get_Var v) ^ " not defined", p)
-        | Data.CstS(_, p2) => raise Error ("Function variable cannont be a constant", p2))
+        if lookup_G (get_Var a) gamma
+        then 
+          let
+            val args2 = get_Args (get_Var a) true  p gamma 
+          in
+            if (length args) = (length args2)
+            then
+              if check_Type_Args args args2
+              then remove_Args args rho
+              else raise Error ("Arguments don't respect the types", p)
+            else raise Error ("Length of arguments is not respected", p)
+          end
+        else raise Error ("Function " ^ (get_Var a) ^ " not defined", p)
     | check_C gamma rho (Data.UncallS(a, args, p)) =
-        case a of
-          Data.VarS(v) => 
-            if lookup_G (get_Var v) gamma
-            then 
-              let
-                val args2 = get_Args (get_Var v) false  p gamma 
-              in
-                if (length args) = (length args2)
-                then
-                  if check_Type_Args args args2
-                  then remove_Args args rho
-                  else raise Error ("Arguments don't respect the types", p)
-                else raise Error ("Length of arguments is not respected", p)
-              end
-            else raise Error ("Function " ^ (get_Var v) ^ " not defined", p)
-        | Data.CstS(_, p) => raise Error ("Function variable cannont be a constant", p)
+        if lookup_G (get_Var a) gamma
+        then 
+          let
+            val args2 = get_Args (get_Var a) false  p gamma 
+          in
+            if (length args) = (length args2)
+            then
+              if check_Type_Args args args2
+              then remove_Args args rho
+              else raise Error ("Arguments don't respect the types", p)
+            else raise Error ("Length of arguments is not respected", p)
+          end
+        else raise Error ("Function " ^ (get_Var a) ^ " not defined", p)
   
   (* check if operations are valid *)
   fun check_O rho (Data.SimOp2S(a)) =

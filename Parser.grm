@@ -100,8 +100,8 @@ Stat:
   | Memory RSHIFTEQ Operation				{ MemOp2S(">>=", $1, $3, $2) }
   | Memory SWAP Memory					{ MemSwapS($1, $3, $2) }
   | Atom ASSIGN Memory ASSIGN Atom			{ SwapS($1, $3, $5, $2) }
-  | LPAR Args RPAR ASSIGN CALL NAME LPAR Args RPAR	{ AssignArgS($2, CallS(VarS $6, $8, $5), $4) }
-  | LPAR Args RPAR ASSIGN UNCALL NAME LPAR Args RPAR	{ AssignArgS($2, UncallS(VarS $6, $8, $5), $4) }
+  | LPAR Args RPAR ASSIGN CALL NAME LPAR Args RPAR	{ AssignArgS($2, CallS($6, $8, $5), $4) }
+  | LPAR Args RPAR ASSIGN UNCALL NAME LPAR Args RPAR	{ AssignArgS($2, UncallS($6, $8, $5), $4) }
   | Public COLON NAME ASSIGN REVEAL Secret NAME		{ TAssignS(TypeS(Public, $1), VarS $3, RevealS(TypeS (Secret, $6), VarS $7, $5), $4) }
   | Secret COLON NAME ASSIGN HIDE Public NAME		{ TAssignS(TypeS(Secret, $1), VarS $3, HideS(TypeS (Public, $6), VarS $7, $5), $4) }
 ;

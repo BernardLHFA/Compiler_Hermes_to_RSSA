@@ -8,14 +8,25 @@ struct
   val R = Data.R
 
   (* Creation of arrays for the memory access *)
-  val s8 = Array.array(10, (limitZ 8 (int2h 0)))
-  val s16 = Array.array(10, (limitZ 16 (int2h 0)))
-  val s32 = Array.array(10, (limitZ 32 (int2h 0)))
-  val s64 = Array.array(10, (limitZ 64 (int2h 0)))
-  val p8 = Array.array(10, (limitZ 8 (int2h 0)))
-  val p16 = Array.array(10, (limitZ 16 (int2h 0)))
-  val p32 = Array.array(10, (limitZ 32 (int2h 0)))
-  val p64 = Array.array(10, (limitZ 64 (int2h 0)))
+  val secret =
+    let
+      val _ = TextIO.print("Initialize Secret Memory: ")
+      val str = valOf (TextIO.inputLine TextIO.stdIn)
+      val strs = String.tokens Char.isSpace str
+      val ve = List.map (fn st => limitZ 64 (string2h st (0,0))) strs
+    in
+      Array.fromList(ve)
+    end
+
+  val public =
+    let
+      val _ = TextIO.print("Initialize Public Memory: ")
+      val str = valOf (TextIO.inputLine TextIO.stdIn)
+      val strs = String.tokens Char.isSpace str
+      val ve = List.map (fn st => limitZ 64 (string2h st (0,0))) strs
+    in
+      Array.fromList(ve)
+    end
 
   datatype location = Variable of hex ref
   
@@ -335,25 +346,25 @@ fun rho_return [] rho p = []
               val (_, Variable loc) = lookup (get_Var v) rho p
             in
               case t of
-                (Data.TypeS(Data.Secret, Data.u8)) => (s8, h2int (!loc), 8)
-              | (Data.TypeS(Data.Secret, Data.u16)) => (s16, h2int (!loc), 16)
-              | (Data.TypeS(Data.Secret, Data.u32)) => (s32, h2int (!loc), 32)
-              | (Data.TypeS(Data.Secret, Data.u64)) => (s64, h2int (!loc), 64)
-              | (Data.TypeS(Data.Public, Data.u8)) => (p8, h2int (!loc), 8)
-              | (Data.TypeS(Data.Public, Data.u16)) => (p16, h2int (!loc), 16)
-              | (Data.TypeS(Data.Public, Data.u32)) => (p32, h2int (!loc), 32)
-              | (Data.TypeS(Data.Public, Data.u64)) => (p64, h2int (!loc), 64)
+                (Data.TypeS(Data.Secret, Data.u8)) => (secret, h2int (!loc), 8)
+              | (Data.TypeS(Data.Secret, Data.u16)) => (secret, h2int (!loc), 16)
+              | (Data.TypeS(Data.Secret, Data.u32)) => (secret, h2int (!loc), 32)
+              | (Data.TypeS(Data.Secret, Data.u64)) => (secret, h2int (!loc), 64)
+              | (Data.TypeS(Data.Public, Data.u8)) => (public, h2int (!loc), 8)
+              | (Data.TypeS(Data.Public, Data.u16)) => (public, h2int (!loc), 16)
+              | (Data.TypeS(Data.Public, Data.u32)) => (public, h2int (!loc), 32)
+              | (Data.TypeS(Data.Public, Data.u64)) => (public, h2int (!loc), 64)
             end
         | (Data.CstS(c, _)) =>
             case t of
-              (Data.TypeS(Data.Secret, Data.u8)) => (s8, valOf (Int.fromString c), 8)
-            | (Data.TypeS(Data.Secret, Data.u16)) => (s16, valOf (Int.fromString c), 16)
-            | (Data.TypeS(Data.Secret, Data.u32)) => (s32, valOf (Int.fromString c), 32)
-            | (Data.TypeS(Data.Secret, Data.u64)) => (s64, valOf (Int.fromString c), 64)
-            | (Data.TypeS(Data.Public, Data.u8)) => (p8, valOf (Int.fromString c), 8)
-            | (Data.TypeS(Data.Public, Data.u16)) => (p16, valOf (Int.fromString c), 16)
-            | (Data.TypeS(Data.Public, Data.u32)) => (p32, valOf (Int.fromString c), 32)
-            | (Data.TypeS(Data.Public, Data.u64)) => (p64, valOf (Int.fromString c), 64)
+              (Data.TypeS(Data.Secret, Data.u8)) => (secret, valOf (Int.fromString c), 8)
+            | (Data.TypeS(Data.Secret, Data.u16)) => (secret, valOf (Int.fromString c), 16)
+            | (Data.TypeS(Data.Secret, Data.u32)) => (secret, valOf (Int.fromString c), 32)
+            | (Data.TypeS(Data.Secret, Data.u64)) => (secret, valOf (Int.fromString c), 64)
+            | (Data.TypeS(Data.Public, Data.u8)) => (public, valOf (Int.fromString c), 8)
+            | (Data.TypeS(Data.Public, Data.u16)) => (public, valOf (Int.fromString c), 16)
+            | (Data.TypeS(Data.Public, Data.u32)) => (public, valOf (Int.fromString c), 32)
+            | (Data.TypeS(Data.Public, Data.u64)) => (public, valOf (Int.fromString c), 64)
 
   (* Makes operations with no inpact on the environment *)
   fun do_O rho (Data.SimOp2S(a)) =
@@ -540,35 +551,29 @@ fun rho_return [] rho p = []
   
   (* Evaluates calls, using other functions *)
   and do_Call gamma rho (Data.CallS(f, arg, p)) oprg =
-        (case f of
-          (Data.VarS(v)) =>
-            let
-              val (argm, ss) = lookupG (get_Var v) gamma p true
-              val (argf, _) = lookupG (get_Var v) gamma p false
-              val block = get_Block_EnEx v oprg true p
-              val nrho = new_rho argm arg rho p
-              val nrho2 = do_main_extra block false gamma oprg nrho
-              val nrho3 = rho_return argf nrho2 p
-              val rho2 = rem_rho_Arg arg rho
-            in
-              (nrho3, rho2)
-            end
-        | (Data.CstS(c, _)) => raise Error ("Name of function cannot be a constant", p))
+        let
+          val (argm, ss) = lookupG (get_Var f) gamma p true
+          val (argf, _) = lookupG (get_Var f) gamma p false
+          val block = get_Block_EnEx f oprg true p
+          val nrho = new_rho argm arg rho p
+          val nrho2 = do_main_extra block false gamma oprg nrho
+          val nrho3 = rho_return argf nrho2 p
+          val rho2 = rem_rho_Arg arg rho
+        in
+          (nrho3, rho2)
+        end
     | do_Call gamma rho (Data.UncallS(f, arg, p)) oprg =
-        (case f of
-          (Data.VarS(v)) =>
-            let
-              val (argm, ss) = lookupG (get_Var v) gamma p false
-              val (argf, _) = lookupG (get_Var v) gamma p true
-              val block = get_Block_EnEx v oprg false p
-              val nrho = new_rho argm arg rho p
-              val nrho2 = do_main_backwards_extra block true gamma oprg nrho
-              val nrho3 = rho_return argf nrho2 p
-              val rho2 = rem_rho_Arg arg rho
-            in
-              (nrho3, rho2)
-            end
-        | (Data.CstS(c, _)) => raise Error ("Name of function cannot be a constant", p))
+        let
+          val (argm, ss) = lookupG (get_Var f) gamma p false
+          val (argf, _) = lookupG (get_Var f) gamma p true
+          val block = get_Block_EnEx f oprg false p
+          val nrho = new_rho argm arg rho p
+          val nrho2 = do_main_backwards_extra block true gamma oprg nrho
+          val nrho3 = rho_return argf nrho2 p
+          val rho2 = rem_rho_Arg arg rho
+        in
+          (nrho3, rho2)
+        end
 
   (* Evaluate extra block (other than main) *)
   and do_B_extra (Data.BlockS(en, ss, ex, p)) backwards gamma rho oprg =
@@ -790,6 +795,13 @@ fun rho_return [] rho p = []
               else do_P ps backwards gamma oprg
           | _ => do_P ps backwards gamma oprg
   
+  fun printArray memory i =
+        if i < Array.length(memory) - 1
+        then (h2hString (Array.sub(memory, i))) ^ ", " ^ (printArray memory (i+1))
+        else if i < Array.length(memory)
+        then (h2hString (Array.sub(memory, i))) ^ (printArray memory (i+1))
+        else ""
+
   (* print parameter *)
   fun printPar rho (t, x) =
         let
@@ -803,6 +815,8 @@ fun rho_return [] rho p = []
       val gamma = do_G prg
       val (rho, args) = do_P prg backwards gamma prg
     in
+      TextIO.print ("Secret Array: [" ^ printArray secret 0 ^ "]\n");
+      TextIO.print ("Public Array: [" ^ printArray public 0 ^ "]\n");
       List.app (printPar rho) args
       (*do_P prg backwards gamma*)
       (*List.app (do_P prg backwards) gamma*)

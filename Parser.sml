@@ -705,7 +705,7 @@ val d__7__ = peekVal 2 : (int*int)
 val d__8__ = peekVal 1 : Data.Arguments list
 val d__9__ = peekVal 0 : (int*int)
 in
-( AssignArgS((d__2__), CallS(VarS (d__6__), (d__8__), (d__5__)), (d__4__)) ) end : Data.Stat))
+( AssignArgS((d__2__), CallS((d__6__), (d__8__), (d__5__)), (d__4__)) ) end : Data.Stat))
 ;
 (* Rule 43, file Parser.grm, line 104 *)
 val _ = update_ yyact 43
@@ -720,7 +720,7 @@ val d__7__ = peekVal 2 : (int*int)
 val d__8__ = peekVal 1 : Data.Arguments list
 val d__9__ = peekVal 0 : (int*int)
 in
-( AssignArgS((d__2__), UncallS(VarS (d__6__), (d__8__), (d__5__)), (d__4__)) ) end : Data.Stat))
+( AssignArgS((d__2__), UncallS((d__6__), (d__8__), (d__5__)), (d__4__)) ) end : Data.Stat))
 ;
 (* Rule 44, file Parser.grm, line 105 *)
 val _ = update_ yyact 44

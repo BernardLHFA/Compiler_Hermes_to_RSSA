@@ -30,8 +30,8 @@ struct
     | HideS of Type * Atom * pos
 
   datatype Calling =
-      CallS of Atom * Arguments list * pos
-    | UncallS of Atom * Arguments list * pos
+      CallS of Variable * Arguments list * pos
+    | UncallS of Variable * Arguments list * pos
 
   datatype Operation =
       SimOp2S of Atom
@@ -127,7 +127,7 @@ struct
           "hide " ^ showType t ^ " " ^ showAtom a
 
   fun showCall (CallS(a, aas, p)) =
-          "call " ^ showAtom a ^ "(" ^
+          "call " ^ showVar a ^ "(" ^
           let
             val args = String.concat (List.map (fn a => showArg a ^ ", ") aas)
           in
@@ -135,7 +135,7 @@ struct
             else String.substring (args, 0, String.size args - 2)
           end ^ ")"
     | showCall (UncallS(a, aas, p)) =
-          "uncall " ^ showAtom a ^ "(" ^
+          "uncall " ^ showVar a ^ "(" ^
           let
             val args = String.concat (List.map (fn a => showArg a ^ ", ") aas)
           in
