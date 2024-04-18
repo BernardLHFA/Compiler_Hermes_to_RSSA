@@ -13,7 +13,7 @@ struct
       val _ = TextIO.print("Initialize Secret Memory: ")
       val str = valOf (TextIO.inputLine TextIO.stdIn)
       val strs = String.tokens Char.isSpace str
-      val ve = List.map (fn st => limitZ 64 (string2h st (0,0))) strs
+      val ve = List.map (fn st => limitZ 8 (string2h st (0,0))) strs
     in
       Array.fromList(ve)
     end
@@ -23,10 +23,47 @@ struct
       val _ = TextIO.print("Initialize Public Memory: ")
       val str = valOf (TextIO.inputLine TextIO.stdIn)
       val strs = String.tokens Char.isSpace str
-      val ve = List.map (fn st => limitZ 64 (string2h st (0,0))) strs
+      val ve = List.map (fn st => limitZ 8 (string2h st (0,0))) strs
     in
       Array.fromList(ve)
     end
+  
+  (* Loading elements inside of memories *)
+  fun loadMem(mem, address, size) =
+    if size = 0 then []
+    else Array.sub(mem, address) :: loadMem(mem, address+1, size-1)
+  
+  (* Storing element inside of memories *)
+  fun storeMem(mem, address, []) = ()
+    | storeMem(mem, address, (x :: byte)) =
+        let
+          val _ = Array.update(mem, address, x);
+        in
+          storeMem(mem, address+1, byte)
+        end
+  
+  fun addByte [] = limitZ 8 (int2h 0)
+    | addByte (x :: rm) =
+        limitZ 64 (hAdd64 x (addByte rm))
+  
+  fun turnByte(z, h, p) =
+        case z of
+          64 => 
+            if (h2int h) < (h2int (limitZ 32 hMax64))
+            then turnByte((z div 2), (int2h 0), p)@turnByte((z div 2), h, p)
+            else turnByte((z div 2), (limitZ 64 (hMod64 h (limitZ 32 hMax64) p)), p)@turnByte((z div 2), (limitZ 32 hMax64), p)
+        | 32 =>
+            if (h2int h) < (h2int (limitZ 16 hMax64))
+            then turnByte((z div 2), (int2h 0), p)@turnByte((z div 2), h, p)
+            else turnByte((z div 2), (limitZ 64 (hMod64 h (limitZ 16 hMax64) p)), p)@turnByte((z div 2), (limitZ 16 hMax64), p)
+        | 16 => 
+            if (h2int h) < (h2int (limitZ 8 hMax64))
+            then [(limitZ 8 (int2h 0))]@turnByte((z div 2), h, p)
+            else [(hMod64 h (limitZ 64 (limitZ 8 hMax64)) p)]@turnByte((z div 2), (limitZ 8 hMax64), p)
+        | 8 =>
+            [(hMod64 h (limitZ 64 (limitZ 8 hMax64)) p)]
+        | _ => raise Error ("Size not suited", p)
+
 
   datatype location = Variable of hex ref
   
@@ -486,34 +523,38 @@ fun rho_return [] rho p = []
         let
           val (Variable loc) = do_O rho e
           val (mem, i, z0) = do_M rho m
-          val x = MemBinOp st z0 (Array.sub(mem, i)) (!loc) p
+          val rm = loadMem(mem, i, (z0 div 8))
+          val x = MemBinOp st z0 (addByte rm) (!loc) p
+          val byte = turnByte(z0, (limitZ z0 x), p)
         in
-          Array.update(mem, i, x) ;
+          storeMem(mem, i, byte) ;
           do_S gamma rho s oprg
         end
     | do_S gamma rho (Data.MemSwapS(m1, m2, p) :: s) oprg = (* Memory Swap *)
         let
           val (mem1, i1, z1) = do_M rho m1
           val (mem2, i2, z2) = do_M rho m2
-          val x1 = Array.sub(mem1, i1)
-          val x2 = Array.sub(mem2, i2)
+          val x1 = loadMem(mem1, i1, (z1 div 8))
+          val x2 = loadMem(mem2, i2, (z2 div 8))
         in
-          Array.update(mem1, i1, x2) ;
-          Array.update(mem2, i2, x1) ;
+          storeMem(mem1, i1, x2) ;
+          storeMem(mem2, i2, x1) ;
           do_S gamma rho s oprg
         end
     | do_S gamma rho (Data.SwapS(a1, m, a2, p) :: s) oprg = (* Variable Swap, using memory *)
         let
           val (mem, i, z1) = do_M rho m
-          val x = Array.sub(mem, i)
+          val rn = loadMem(mem, i, (z1 div 8))
+          val x = addByte rn
         in
           case a2 of
             (Data.VarS(v2)) =>
               let
                 val (z0, Variable loc) = lookup (get_Var v2) rho p
                 val rho2 = rem_rho (get_Var v2) rho
+                val rn2 = turnByte((h2int z0), !loc, p)
               in
-                Array.update(mem, i, !loc);
+                storeMem(mem, i, rn2);
                 case a1 of
                   (Data.VarS(v1)) =>
                     do_S gamma (rho2@[((get_Var v1), (int2h z1, Variable (ref  x)))]) s oprg
@@ -523,7 +564,7 @@ fun rho_return [] rho p = []
                     else raise Error ("Constant isn't equal to memory", p)
               end
           | (Data.CstS(c, _)) =>
-              (Array.update(mem, i, (limitZ z1 (string2h c (0, 0)))) ;
+              (storeMem(mem, i, turnByte(64, (limitZ z1 (string2h c (0, 0))), p)) ;
               case a1 of
                 (Data.VarS(v1)) =>
                   do_S gamma (rho@[((get_Var v1), (int2h z1, Variable (ref x)))]) s oprg
