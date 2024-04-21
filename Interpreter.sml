@@ -14,8 +14,11 @@ struct
       val str = valOf (TextIO.inputLine TextIO.stdIn)
       val strs = String.tokens Char.isSpace str
       val ve = List.map (fn st => limitZ 8 (string2h st (0,0))) strs
+      val arr = Array.fromList(ve)
+      val new = Array.array(80, limitZ 64 (int2h 0))
+      val _ = Array.copy{di = 0, dst = new, src = arr}
     in
-      Array.fromList(ve)
+      new
     end
 
   val public =
@@ -24,8 +27,11 @@ struct
       val str = valOf (TextIO.inputLine TextIO.stdIn)
       val strs = String.tokens Char.isSpace str
       val ve = List.map (fn st => limitZ 8 (string2h st (0,0))) strs
+      val arr = Array.fromList(ve)
+      val new = Array.array(80, limitZ 64 (int2h 0))
+      val _ = Array.copy{di = 0, dst = new, src = arr}
     in
-      Array.fromList(ve)
+      new
     end
   
   (* Loading elements inside of memories *)
@@ -49,19 +55,19 @@ struct
   fun turnByte(z, h, p) =
         case z of
           64 => 
-            if (h2int h) < (h2int (limitZ 32 hMax64))
+            if (h2int h) <= (h2int (limitZ 32 hMax64))
             then turnByte((z div 2), (int2h 0), p)@turnByte((z div 2), h, p)
-            else turnByte((z div 2), (limitZ 64 (hMod64 h (limitZ 32 hMax64) p)), p)@turnByte((z div 2), (limitZ 32 hMax64), p)
+            else turnByte((z div 2), (limitZ 64 ((hDiv64 h (hAdd64 (limitZ 32 hMax64) (int2h 1)) p))), p)@turnByte((z div 2), (limitZ 64 (hMod64 h (hAdd64 (limitZ 32 hMax64) (int2h 1)) p)), p)
         | 32 =>
-            if (h2int h) < (h2int (limitZ 16 hMax64))
+            if (h2int h) <= (h2int (limitZ 16 hMax64))
             then turnByte((z div 2), (int2h 0), p)@turnByte((z div 2), h, p)
-            else turnByte((z div 2), (limitZ 64 (hMod64 h (limitZ 16 hMax64) p)), p)@turnByte((z div 2), (limitZ 16 hMax64), p)
+            else turnByte((z div 2), (limitZ 64 ((hDiv64 h (hAdd64 (limitZ 16 hMax64) (int2h 1)) p))), p)@turnByte((z div 2), (limitZ 64 (hMod64 h (hAdd64 (limitZ 16 hMax64) (int2h 1)) p)), p)
         | 16 => 
-            if (h2int h) < (h2int (limitZ 8 hMax64))
+            if (h2int h) <= (h2int (limitZ 8 hMax64))
             then [(limitZ 8 (int2h 0))]@turnByte((z div 2), h, p)
-            else [(hMod64 h (limitZ 64 (limitZ 8 hMax64)) p)]@turnByte((z div 2), (limitZ 8 hMax64), p)
+            else [(hDiv64 h (hAdd64 (limitZ 8 hMax64) (int2h 1)) p)]@turnByte((z div 2), (limitZ 64 (hMod64 h (hAdd64 (limitZ 8 hMax64) (int2h 1)) p)), p)
         | 8 =>
-            [(hMod64 h (limitZ 64 (limitZ 8 hMax64)) p)]
+            [(hMod64 h (limitZ 64 (hAdd64 (limitZ 8 hMax64) (int2h 1))) p)]
         | _ => raise Error ("Size not suited", p)
 
 
