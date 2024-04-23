@@ -1,0 +1,119 @@
+local
+type t__1__ = (int*int)
+type t__2__ = (int*int)
+type t__3__ = (int*int)
+type t__4__ = (int*int)
+type t__5__ = (int*int)
+type t__6__ = (int*int)
+type t__7__ = (int*int)
+type t__8__ = (int*int)
+type t__9__ = (int*int)
+type t__10__ = (int*int)
+type t__11__ = (int*int)
+type t__12__ = (int*int)
+type t__13__ = (int*int)
+type t__14__ = (int*int)
+type t__15__ = (int*int)
+type t__16__ = (int*int)
+type t__17__ = (int*int)
+type t__18__ = (int*int)
+type t__19__ = string*(int*int)
+type t__20__ = (int*int)
+type t__21__ = (int*int)
+type t__22__ = (int*int)
+type t__23__ = (int*int)
+type t__24__ = (int*int)
+type t__25__ = (int*int)
+type t__26__ = (int*int)
+type t__27__ = (int*int)
+type t__28__ = (int*int)
+type t__29__ = (int*int)
+type t__30__ = (int*int)
+type t__31__ = string*(int*int)
+type t__32__ = (int*int)
+type t__33__ = (int*int)
+type t__34__ = (int*int)
+type t__35__ = (int*int)
+type t__36__ = (int*int)
+type t__37__ = (int*int)
+type t__38__ = (int*int)
+type t__39__ = (int*int)
+type t__40__ = (int*int)
+type t__41__ = (int*int)
+type t__42__ = (int*int)
+type t__43__ = (int*int)
+type t__44__ = string*(int*int)
+type t__45__ = (int*int)
+type t__46__ = (int*int)
+type t__47__ = (int*int)
+type t__48__ = (int*int)
+type t__49__ = (int*int)
+type t__50__ = (int*int)
+type t__51__ = (int*int)
+type t__52__ = (int*int)
+type t__53__ = (int*int)
+type t__54__ = (int*int)
+type t__55__ = (int*int)
+type t__56__ = (int*int)
+in
+datatype token =
+    ADD of t__1__
+  | ALLZERO of t__2__
+  | ASSERT of t__3__
+  | BAND of t__4__
+  | BNOT of t__5__
+  | BOR of t__6__
+  | CALL of t__7__
+  | COMMA of t__8__
+  | CONST of t__9__
+  | DEC of t__10__
+  | DIVIDE of t__11__
+  | ELSE of t__12__
+  | EOF of t__13__
+  | EQ of t__14__
+  | EQUAL of t__15__
+  | FOR of t__16__
+  | GEQ of t__17__
+  | GREATER of t__18__
+  | ID of t__19__
+  | IF of t__20__
+  | INC of t__21__
+  | LBRACE of t__22__
+  | LBRACK of t__23__
+  | LEQ of t__24__
+  | LESS of t__25__
+  | LPAR of t__26__
+  | MASTERSPACE of t__27__
+  | MINUS of t__28__
+  | MODULO of t__29__
+  | NEQ of t__30__
+  | NUM of t__31__
+  | PLUS of t__32__
+  | PUBLIC of t__33__
+  | RBRACE of t__34__
+  | RBRACK of t__35__
+  | ROL of t__36__
+  | ROR of t__37__
+  | RPAR of t__38__
+  | SECRET of t__39__
+  | SEMICOLON of t__40__
+  | SHIFTL of t__41__
+  | SHIFTR of t__42__
+  | SIZE of t__43__
+  | STRINGCONST of t__44__
+  | SUB of t__45__
+  | SWAP of t__46__
+  | THEN of t__47__
+  | TIMES of t__48__
+  | U16 of t__49__
+  | U32 of t__50__
+  | U64 of t__51__
+  | U8 of t__52__
+  | UNCALL of t__53__
+  | UNSAFE of t__54__
+  | XOR of t__55__
+  | XORWITH of t__56__
+end;
+
+val Program :
+  (Lexing.lexbuf -> token) -> Lexing.lexbuf -> Hermes.program;
