@@ -18,10 +18,10 @@ struct
           (* val _ = TextIO.output (TextIO.stdErr, Hermes.showProgram pgm) *)
         in
           (* TextIO.output (TextIO.stdErr,Hermes.showProgram pgm) ; *)
+          TextIO.output (TextIO.stdErr,Data.showProgram ssa);
           HermesTypes.check pgm ;
           Types.check ssa ;
-          Interpreter.run ssa backwards;
-          TextIO.output (TextIO.stdErr,Data.showProgram ssa)
+          Interpreter.run ssa backwards
           (*HermesInt.run pgm backwards*)
         end
           handle Parsing.yyexit ob => errorMess "Parser-exit\n"

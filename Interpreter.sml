@@ -483,7 +483,7 @@ fun rho_return [] rho p = []
             (Data.VarS(v)) =>
               do_S gamma (rho2@[((get_Var v), (z0, Variable loc))]) s oprg
           | (Data.CstS(c, _)) =>
-              if (limitZ 64 (string2h c (0, 0))) = !loc
+              if h2int(limitZ 64 (string2h c (0, 0))) = h2int(!loc)
               then do_S gamma rho2 s oprg
               else raise Error ("Operation does not equal the desired constant", p)
         end
