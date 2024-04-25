@@ -1,2 +1,5 @@
-main(u32 x, public u32 y)
-	x += (y + 1) + 3;
+main(public u64 x, public u64 y)
+{
+	x += 1 + 2 * 3;
+	x <-> y;
+}
