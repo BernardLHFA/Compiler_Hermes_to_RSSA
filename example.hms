@@ -1,5 +1,2 @@
-main(public u64 x, public u64 y)
-{
-	x += 1 + 2 * 3;
-	x <-> y;
-}
+rc5(public u64 ct[], public u64 x)
+	ct[0] += size ct;

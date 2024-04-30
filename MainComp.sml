@@ -35,10 +35,10 @@ struct
                      errorMess ("Lexical error: " ^mess^ " at line "
                       ^ makestring lin ^ ", column " ^ makestring col)
                | HermesTypes.Error (mess, (lin,col)) =>
-                     errorMess ("Type error: " ^mess^ " at line "
+                     errorMess ("Hermes Type error: " ^mess^ " at line "
                       ^ makestring lin ^ ", column " ^ makestring col)
                | Types.Error (mess, (lin,col)) =>
-                     errorMess ("Type error: " ^mess^ " at line "
+                     errorMess ("RSSA Type error: " ^mess^ " at line "
                       ^ makestring lin ^ ", column " ^ makestring col)
                | Interpreter.Error (mess, (lin,col)) =>
                      errorMess ("Runtime error: " ^mess^ " at line "
