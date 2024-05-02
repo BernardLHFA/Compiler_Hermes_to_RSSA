@@ -1,3 +1,3 @@
-rc5(u64 x, public u64 y, public u64 z)
-	x += (1 + y) + z;
+rc5(public u64 x)
+	x += 1 + 2 * 3 + 4 + 5;
 
