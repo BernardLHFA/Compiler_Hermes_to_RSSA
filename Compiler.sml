@@ -6,46 +6,73 @@ struct
   exception Error of string*(int*int)
 
   fun printVar [] = "]\n"
-    | printVar ((t, a, n) :: rest) =
+    | printVar ((t, a, n, b) :: rest) =
         a^(Int.toString n)^", "^printVar rest
 
   (* store new variable name into variable list *)
-  fun store_Variable x t var =
-        var@[(t, x, 0)]
+  fun store_Variable x t var b =
+        var@[(t, x, 0, b)]
 
   (* Increment the id of a variable *)
   fun incr_Variable [] x = []
-    | incr_Variable ((t, a, n) :: res) x =
+    | incr_Variable ((t, a, n, b) :: res) x =
         if x = a
-        then [(t, a, (n+1))]@res
-        else [(t, a, n)]@(incr_Variable res x)
+        then [(t, a, (n+1), b)]@res
+        else [(t, a, n, b)]@(incr_Variable res x)
   
   fun incr_Arguments [] = []
-    | incr_Arguments ((t, a, n) :: res) =
-        [(t, a, (n+1))]@(incr_Arguments res)
+    | incr_Arguments ((t, a, n, b) :: res) =
+        [(t, a, (n+1), b)]@(incr_Arguments res)
 
   (* Get a variable from the list or store a new one if not present *)
-  fun get_Variable [] x t ovar= 
+  fun get_Variable [] x t ovar isArray = 
         let
-          val var2 = (store_Variable x t ovar)
+          val var2 = (store_Variable x t ovar isArray)
         in
           (x^"0", var2)
         end
-    | get_Variable ((tr, a, n) :: rest) x t ovar =
+    | get_Variable ((tr, a, n, b) :: rest) x t ovar isArray =
         if x = a
         then (a^(Int.toString n), ovar)
-        else get_Variable rest x t ovar
+        else get_Variable rest x t ovar isArray
+  
+  fun is_Variable_In x [] = false
+    | is_Variable_In x ((t, a, n, b) :: res) =
+        if x = a
+        then true
+        else is_Variable_In x res
 
-  fun get_Arguments [] p = []
-    | get_Arguments ((t, a, n) :: res) p =
-        [Data.ArgS(t, Data.VarS(a^(Int.toString n), p))]@(get_Arguments res p)
+  fun get_Arguments [] p unused = []
+    | get_Arguments ((t, a, n, b) :: res) p unused =
+        case a of
+          "T" => (get_Arguments res p unused)
+        | "I" => (get_Arguments res p unused)
+        | _ =>
+            if is_Variable_In a unused
+            then (get_Arguments res p unused)
+            else
+              if b 
+              then [Data.ArgS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(a^(Int.toString n), p))]@(get_Arguments res p unused)
+              else [Data.ArgS(t, Data.VarS(a^(Int.toString n), p))]@(get_Arguments res p unused)
+  
+  fun get_Arguments_Variable [] unused = []
+    | get_Arguments_Variable ((t, a, n, b) :: res) unused =
+        if is_Variable_In a unused
+        then (get_Arguments_Variable res unused)
+        else [(t, a, n, b)]@(get_Arguments_Variable res unused)
   
   (* Get the type associated with a variable *)
   fun get_Type x [] p = raise Error ("Variable " ^ x ^ " not found", p)
-    | get_Type x ((t, a, n) :: res) p =
+    | get_Type x ((t, a, n, b) :: res) p =
         if x = a
         then t
         else get_Type x res p
+
+  fun get_unused var1 [] = []
+    | get_unused var1 ((t, a, n, b) :: res) =
+        if is_Variable_In a var1
+        then get_unused var1 res
+        else [(t, a, n, b)]@(get_unused var1 res)
   
   (* Compile a variable either as a constant or a variable *)
   fun comp_Var x p =
@@ -106,15 +133,12 @@ struct
     | comp_BinOp Hermes.Neq = "!="
     | comp_BinOp Hermes.Leq = "<="
     | comp_BinOp Hermes.Geq = ">="
-  
-  fun get_Condition s a (Hermes.Const(i, p)) var11 p2 = 
-        Data.BoolOp2S(s, Data.VarS(a, p2), Data.CstS(i, p), p2)
 
   (* Compile L-Values when used in udpates *)
   fun use_LVal (Hermes.Var(y, p)) var =
         let
           val t = get_Type y var p
-          val (y0, var2) = get_Variable var y t var
+          val (y0, var2) = get_Variable var y t var false
         in
           ([], [], (Data.VarS(y0, p)), var2)
         end
@@ -123,14 +147,14 @@ struct
           val t = get_Type (y^"T") var p
           val size = (get_Size t) div 8
           val var2 = incr_Variable var "T"
-          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 
+          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
           val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T1 p p var4 true
           val var6 = incr_Variable var5 "I"
-          val (I, var7) = get_Variable var6 "I" (Data.TypeS(Data.Public, Data.u64)) var6
+          val (I, var7) = get_Variable var6 "I" (Data.TypeS(Data.Public, Data.u64)) var6 false
           val var8 = incr_Variable var7 "T"
-          val (T2, var9) = get_Variable var8 "T" (Data.TypeS(Data.Public, Data.u64)) var8
-          val (yT, var10) = get_Variable var9 (y^"T") t var9
+          val (T2, var9) = get_Variable var8 "T" (Data.TypeS(Data.Public, Data.u64)) var8 false
+          val (yT, var10) = get_Variable var9 (y^"T") t var9 true
           val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I, p), Data.UpdOp2S("+", Data.CstS("0", p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
                       Data.SwapS(Data.VarS(T2, p), Data.MemoryS(t, Data.VarS(I, p), p), Data.CstS("0", p), p)]
           val finish = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(t, Data.VarS(I, p), p), Data.VarS(T2, p), p),
@@ -142,9 +166,9 @@ struct
   and comp_LVal (Hermes.Var(x, p)) var =
         let
           val t = get_Type x var p
-          val (x0, var2) = get_Variable var x t var
+          val (x0, var2) = get_Variable var x t var false
           val var3 = incr_Variable var2 x
-          val (x1, var4) = get_Variable var3 x t var3
+          val (x1, var4) = get_Variable var3 x t var3 false
         in
           ([], [], t, x1, x0, p, var4, true)
         end
@@ -153,12 +177,12 @@ struct
           val t = get_Type (x^"T") var p
           val size = (get_Size t) div 8
           val var2 = incr_Variable var "T"
-          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
           val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T1 p p var4 true
           val var6 = incr_Variable var5 "I"
-          val (I, var7) = get_Variable var6 "I" (Data.TypeS(Data.Public, Data.u64)) var6
-          val (xT, var8) = get_Variable var7 (x^"T") t var7
+          val (I, var7) = get_Variable var6 "I" (Data.TypeS(Data.Public, Data.u64)) var6 false
+          val (xT, var8) = get_Variable var7 (x^"T") t var7 true
           val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I, p), Data.UpdOp2S("+", Data.CstS("0", p), Data.Op2S("+", Data.VarS(xT, p), Data.VarS(T1, p), p), p), p)]
           val finish = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(I, p), Data.Op2S("+", Data.VarS(xT, p), Data.VarS(T1, p), p), p), p)]
         in
@@ -201,7 +225,7 @@ struct
         end
     | comp_E (Hermes.Size(y, p)) upop t x x0 p2 p3 var bool =
         let
-          val (yS, var2) = get_Variable var (y^"S") (Data.TypeS(Data.Public, Data.u64)) var
+          val (yS, var2) = get_Variable var (y^"S") (Data.TypeS(Data.Public, Data.u64)) var true
         in
           if bool
           then
@@ -260,7 +284,7 @@ struct
     | comp_E (Hermes.Bin(bop, Hermes.Const(i1, ep1), Hermes.Size(y, ep2), p)) upop t x x0 p2 p3 var bool =
         let
           val b = comp_BinOp bop
-          val (yS, var2) = get_Variable var (y^"S") (Data.TypeS(Data.Public, Data.u64)) var
+          val (yS, var2) = get_Variable var (y^"S") (Data.TypeS(Data.Public, Data.u64)) var true
         in
           if bool
           then
@@ -322,7 +346,7 @@ struct
         let
           val b = comp_BinOp bop
           val (S1, F1, y1, var2) = use_LVal lval1 var
-          val (yS, var3) = get_Variable var2 (y2^"S") (Data.TypeS(Data.Public, Data.u64)) var2
+          val (yS, var3) = get_Variable var2 (y2^"S") (Data.TypeS(Data.Public, Data.u64)) var2 true
         in
           if bool
           then
@@ -342,7 +366,7 @@ struct
     | comp_E (Hermes.Bin(bop, Hermes.Size(y, ep1), Hermes.Const(i2, ep2), p)) upop t x x0 p2 p3 var bool =
         let
           val b = comp_BinOp bop
-          val (yS, var2) = get_Variable var (y^"S") (Data.TypeS(Data.Public, Data.u64)) var
+          val (yS, var2) = get_Variable var (y^"S") (Data.TypeS(Data.Public, Data.u64)) var true
         in
           if bool
           then
@@ -363,7 +387,7 @@ struct
         let
           val b = comp_BinOp bop
           val (S1, F1, y2, var2) = use_LVal lval2 var
-          val (yS, var3) = get_Variable var2 (y1^"S") (Data.TypeS(Data.Public, Data.u64)) var2
+          val (yS, var3) = get_Variable var2 (y1^"S") (Data.TypeS(Data.Public, Data.u64)) var2 true
         in
           if bool
           then
@@ -383,8 +407,8 @@ struct
     | comp_E (Hermes.Bin(bop,  Hermes.Size(y1, ep1), Hermes.Size(y2, ep2), p)) upop t x x0 p2 p3 var bool =
         let
           val b = comp_BinOp bop
-          val (yS1, var2) = get_Variable var (y1^"S") (Data.TypeS(Data.Public, Data.u64)) var
-          val (yS2, var3) = get_Variable var2 (y2^"S") (Data.TypeS(Data.Public, Data.u64)) var2
+          val (yS1, var2) = get_Variable var (y1^"S") (Data.TypeS(Data.Public, Data.u64)) var true
+          val (yS2, var3) = get_Variable var2 (y2^"S") (Data.TypeS(Data.Public, Data.u64)) var2 true
         in
           if bool
           then
@@ -405,7 +429,7 @@ struct
         let
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 true
         in
           if bool
@@ -431,7 +455,7 @@ struct
         let
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 true
           val (S, F, y, var5) = use_LVal lval var4
         in
@@ -458,9 +482,9 @@ struct
         let
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 true
-          val (yS, var5) = get_Variable var4 (y2^"S") (Data.TypeS(Data.Public, Data.u64)) var4
+          val (yS, var5) = get_Variable var4 (y2^"S") (Data.TypeS(Data.Public, Data.u64)) var4 true
         in
           if bool
           then
@@ -485,7 +509,7 @@ struct
         let
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 true
         in
           if bool
@@ -511,7 +535,7 @@ struct
         let
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 true
           val (S, F, y, var5) = use_LVal lval var4
         in
@@ -538,9 +562,9 @@ struct
         let
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 true
-          val (yS, var5) = get_Variable var4 (y1^"S") (Data.TypeS(Data.Public, Data.u64)) var4
+          val (yS, var5) = get_Variable var4 (y1^"S") (Data.TypeS(Data.Public, Data.u64)) var4 true
         in
           if bool
           then
@@ -565,9 +589,9 @@ struct
         let
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val var4 = incr_Variable var3 "T"
-          val (T2, var5) = get_Variable var4 "T" (Data.TypeS(Data.Public, Data.u64)) var4
+          val (T2, var5) = get_Variable var4 "T" (Data.TypeS(Data.Public, Data.u64)) var4 false
           val (exprD1, exprF1, var6) = comp_E_contD (Hermes.Bin(e1)) "^" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p2 p3 var5 true
           val (exprD2, exprF2, var7) = comp_E_contD (Hermes.Bin(e2)) "^" (Data.TypeS(Data.Public, Data.u64)) T2 "0" p2 p3 var6 true
         in
@@ -597,7 +621,7 @@ struct
           val xin = comp_Var x p2
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 bool
         in
           (exprD@
@@ -611,7 +635,7 @@ struct
           val xin = comp_Var x p2
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 bool
           val (S, F, y, var5) = use_LVal lval var4
         in
@@ -626,7 +650,7 @@ struct
           val xin = comp_Var x p2
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 bool
         in
           (exprD@
@@ -640,7 +664,7 @@ struct
           val xin = comp_Var x p2
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val (exprD, exprF, var4) = comp_E_contD (Hermes.Bin(e)) "^" (Data.TypeS(Data.Public, Data.u64)) T "0" p2 p3 var3 bool
           val (S, F, y, var5) = use_LVal lval var4
         in
@@ -655,9 +679,9 @@ struct
           val xin = comp_Var x p2
           val b = comp_BinOp bop
           val var2 = incr_Variable var "T"
-          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2
+          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val var4 = incr_Variable var3 "T"
-          val (T2, var5) = get_Variable var4 "T" (Data.TypeS(Data.Public, Data.u64)) var4
+          val (T2, var5) = get_Variable var4 "T" (Data.TypeS(Data.Public, Data.u64)) var4 false
           val (exprD1, exprF1, var6) = comp_E_contD (Hermes.Bin(e1)) "^" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p2 p3 var5 bool
           val (exprD2, exprF2, var7) = comp_E_contD (Hermes.Bin(e2)) "^" (Data.TypeS(Data.Public, Data.u64)) T2 "0" p2 p3 var6 bool
         in
@@ -673,29 +697,141 @@ struct
         in
           (expr1, expr2, var3)
         end
+  
+  fun comp_E_condD (Hermes.Rval(lval)) upop t x x0 p2 p3 var bool t0 i0 = 
+        (case lval of
+          (Hermes.Var(_)) =>
+            let
+              val (expr, var2) = comp_E (Hermes.Rval(lval)) upop t x x0 p2 p3 var bool
+            in
+              ([], expr, var2)
+            end
+        | (Hermes.Array(y, e, p)) =>
+            let
+              val ta = get_Type (y^"T") var p
+              val size = (get_Size t) div 8
+              val var2 = incr_Variable var t0
+              val (T1, var3) = get_Variable var2 t0 (Data.TypeS(Data.Public, Data.u64)) var2 false
+              val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
+              val var5 = incr_Variable var4 i0
+              val (I, var6) = get_Variable var5 i0 (Data.TypeS(Data.Public, Data.u64)) var5 false
+              val var7 = incr_Variable var6 t0
+              val (T2, var8) = get_Variable var7 t0 (Data.TypeS(Data.Public, Data.u64)) var7 false
+              val (yT, var9) = get_Variable var8 (y^"T") t var8 true
+              val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I, p), Data.UpdOp2S("+", Data.CstS("0", p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
+                          Data.SwapS(Data.VarS(T2, p), Data.MemoryS(ta, Data.VarS(I, p), p), Data.CstS("0", p), p)]
+              val xout = comp_Var x0 p2
+              val xin = comp_Var x p2
+            in
+              (indexCreate@start, [Data.AssignS(t, xin, Data.UpdOp2S(upop, xout, Data.SimOp2S(Data.VarS(T2, p)), p2), p3)], var9)
+            end)
+    | comp_E_condD e upop t x x0 p2 p3 var bool t0 i0 =
+        let
+          val (expr, var2) = comp_E e upop t x x0 p2 p3 var bool
+        in
+          ([], expr, var2)
+        end
+    
+  fun comp_E_condF (Hermes.Rval(lval)) upop t x x0 p2 p3 var bool t0 i0 = 
+        (case lval of
+          (Hermes.Var(_)) =>
+            let
+              val (expr, var2) = comp_E (Hermes.Rval(lval)) upop t x x0 p2 p3 var bool
+            in
+              (expr, [], var2)
+            end
+        | (Hermes.Array(y, e, p)) =>
+            let
+              val ta = get_Type (y^"T") var p
+              val size = (get_Size t) div 8
+              val (I, var2) = get_Variable var i0 (Data.TypeS(Data.Public, Data.u64)) var false
+              val (T1, var3) = get_Variable var2 t0 (Data.TypeS(Data.Public, Data.u64)) var2 false
+              val swap = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(ta, Data.VarS(I, p), p), Data.VarS(T1, p), p)]
+              val var4 = incr_Variable var3 t0
+              val (T2, var5) = get_Variable var4 t0 (Data.TypeS(Data.Public, Data.u64)) var4 false
+              val (indexCreate, var6) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T2 "0" p p var5 true
+              val (yT, var7) = get_Variable var6 (y^"T") t var6 true
+              val finish = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(I, p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T2, p), p), p), p)]
+              val (indexEmpty, var8) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T2 p p var7 true
+              val xout = comp_Var x0 p2
+              val xin = comp_Var x p2
+            in
+              ([Data.AssignS(t, xin, Data.UpdOp2S(upop, xout, Data.SimOp2S(Data.VarS(T1, p)), p2), p3)], 
+              swap@indexCreate@finish@indexEmpty,var8)
+            end)
+    | comp_E_condF e upop t x x0 p2 p3 var bool t0 i0 =
+        let
+          val (expr, var2) = comp_E e upop t x x0 p2 p3 var bool
+        in
+          (expr, [], var2)
+        end
+
+  
+  fun get_Condition (Hermes.Bin(bop, Hermes.Const(i1, ep1), Hermes.Const(i2, ep2), p)) var p2 =
+        let
+          val b = comp_BinOp bop
+        in
+          Data.BoolOp2S(b, Data.CstS(i1, ep1), Data.CstS(i2, ep2), p2)
+        end
+    | get_Condition (Hermes.Bin(bop, Hermes.Rval(lval1), Hermes.Const(i2, ep2), p)) var p2 =
+        let
+          val b = comp_BinOp bop
+        in
+          case lval1 of
+            (Hermes.Var(y, p)) =>
+              let
+                val t = get_Type y var p
+                val (y1, _) = get_Variable var y t var false
+              in
+                Data.BoolOp2S(b, Data.VarS(y1, p), Data.CstS(i2, ep2), p2)
+              end
+        end
+
+  fun get_Condition_Equal a (Hermes.Const(i, p)) var p2 t0 = 
+        Data.BoolOp2S("==", Data.VarS(a, p2), Data.CstS(i, p), p2)
+    | get_Condition_Equal a (Hermes.Rval(lval)) var p2 t0 =
+        (case lval of
+          (Hermes.Var(y, p)) =>
+            let
+              val (_, _, l, var2) = use_LVal lval var
+            in
+              Data.BoolOp2S("==", Data.VarS(a, p2), l, p2)
+            end
+        | (Hermes.Array(y, e, p)) =>
+            let
+              val (T, var2) = get_Variable var t0 (Data.TypeS(Data.Public, Data.u64)) var false
+            in
+              Data.BoolOp2S("==", Data.VarS(a, p2), Data.VarS(T, p), p2)
+            end)
+    | get_Condition_Equal a (Hermes.Size(x, p)) var p2 t0 =
+        let
+          val (xS, _) = get_Variable var (x^"S") (Data.TypeS(Data.Public, Data.u64)) var true
+        in
+          Data.BoolOp2S("==", Data.VarS(a, p2), Data.VarS(xS, p), p2)
+        end
 
   (* Compiler Arguments *)
   fun comp_Args [] var res = (res, var)
     | comp_Args (Hermes.VarArg(x, t, p) :: pargs) var res =
         let
           val ty = comp_Type t
-          val (atom, var2) = get_Variable var x ty var
+          val (atom, var2) = get_Variable var x ty var false
         in
           comp_Args pargs var2 (res@[Data.ArgS(ty, Data.VarS(atom, p))])
         end
     | comp_Args (Hermes.ArrayArg(x, t, p) :: pargs) var res =
         let
           val ty = comp_Type t
-          val (atomBegin, var2) = get_Variable var (x^"T") ty var
-          val (atomSize, var3) = get_Variable var2 (x^"S") (Data.TypeS(Data.Public, Data.u64)) var2
+          val (atomBegin, var2) = get_Variable var (x^"T") ty var true
+          val (atomSize, var3) = get_Variable var2 (x^"S") (Data.TypeS(Data.Public, Data.u64)) var2 true
         in
           comp_Args pargs var3 (res@[Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomBegin, p)),
                                     Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomSize, p))])
         end
   
   (* Compile Statements *)
-  fun comp_S block res (Hermes.Skip) entry var = (block, entry, res, var) (* Skip *)
-    | comp_S block res (Hermes.Update(upop, lv, e, p)) entry var = (* Updates *)
+  fun comp_S block res (Hermes.Skip) entry var label incr = (block, entry, res, var) (* Skip *)
+    | comp_S block res (Hermes.Update(upop, lv, e, p)) entry var label incr = (* Updates *)
         let
           val (start, finish, t, x, x0, p2, var2, bool) = comp_LVal lv var
           val u = comp_Upop upop
@@ -703,7 +839,7 @@ struct
         in
           (block, entry, res@start@expr@finish, var3)
         end
-    | comp_S block res (Hermes.Swap(lval1, lval2, p)) entry var = (* Swaps *)
+    | comp_S block res (Hermes.Swap(lval1, lval2, p)) entry var label incr = (* Swaps *)
         let
           val (start1, finish1, t1, x1, x0, p1, var2, bool1) = comp_LVal lval1 var
           val (start2, finish2, t2, y1, y0, p2, var3, bool2) = comp_LVal lval2 var2
@@ -724,46 +860,86 @@ struct
               [Data.SwapS(Data.VarS(y1, p2), Data.MemoryS(t1, Data.VarS(x1, p1), p), Data.VarS(y0, p2), p)]
               @finish1, var3)
         end
-    | comp_S block res (Hermes.For(i, e1, e2, ss, p)) entry var = 
+    | comp_S block res (Hermes.If(e, s1, s2, p)) entry var label incr =
+        let
+          val cond = get_Condition e var p
+          val args = get_Arguments var p []
+          val exit1 = Data.CondExitS(cond, (label^"L1", p), (label^"L2", p), args, p)
+          val newblock = Data.BlockS(entry, res, exit1, p)
+          val var2 = incr_Arguments var
+          val args2 = get_Arguments var2 p []
+          val entry2 = Data.UncondEntryS((label^"L1", p), args2, p)
+          val (block2, entry2bis, stats1, var3) = comp_S [newblock] [] s1 entry2 var2 (label^"if") 0
+          val args3 = get_Arguments var3 p []
+          val exit2 = Data.UncondExitS((label^"L3", p), args3, p)
+          val newblock2 = Data.BlockS(entry2bis, stats1, exit2, p)
+          val var4 = incr_Arguments var3
+          val args4 = get_Arguments var4 p []
+          val entry3 = Data.UncondEntryS((label^"L2", p), args4, p)
+          val (block3, entry3bis, stats2, var5) = comp_S (block2@[newblock2]) [] s2 entry3 var4 (label^"else") 0
+          val args5 = get_Arguments var5 p []
+          val exit3 = Data.UncondExitS((label^"L4", p), args5, p)
+          val newblock3 = Data.BlockS(entry3bis, stats2, exit3, p)
+          val var6 = incr_Arguments var5
+          val args6 = get_Arguments var6 p []
+          val cond2 = get_Condition e var6 p
+          val entry4 = Data.CondEntryS(cond2, (label^"L3", p), (label^"L4", p), args6, p)
+        in
+          (block@block3@[newblock3], entry4, [], var6)
+        end
+    | comp_S block res (Hermes.For(i, e1, e2, ss, p)) entry var label incr = 
         let
           val var2 = incr_Variable var i
-          val (i0, var3) = get_Variable var2 i (Data.TypeS(Data.Public, Data.u64)) var2
-          val (expr1, var4) = comp_E e1 "^" (Data.TypeS(Data.Public, Data.u64)) i0 "0" p p var3 true
-          val args = get_Arguments var4 p
-          val exit1 = Data.UncondExitS(("L1", p), args, p)
-          val newblock = Data.BlockS(entry, res@expr1, exit1, p)
-          val var5 = incr_Arguments var4
-          val args2 = get_Arguments var5 p
-          val (i1, var6) = get_Variable var5 i (Data.TypeS(Data.Public, Data.u64)) var5
-          val cond1 = get_Condition "==" i1 e1 var6 p
-          val entry2 = Data.CondEntryS(cond1, ("L1", p), ("L2", p), args2, p)
-          val (block2, entry3, stats, var7) = comp_S [newblock] [] ss entry2 var6
-          val args3 = get_Arguments var7 p
-          val (i2, var8) = get_Variable var7 i (Data.TypeS(Data.Public, Data.u64)) var7
-          val cond2 = get_Condition "==" i2 e2 var8 p
-          val exit2 = Data.CondExitS(cond2, ("L3", p), ("L2", p), args3, p)
+          val (i0, var3) = get_Variable var2 i (Data.TypeS(Data.Public, Data.u64)) var2 false
+          val (start1, expr1, var4) = comp_E_condD e1 "^" (Data.TypeS(Data.Public, Data.u64)) i0 "0" p p var3 true (label^(Int.toString incr)^"T1") (label^(Int.toString incr)^"I1")
+          val (start2, _, var5) = comp_E_condD e2 "^" (Data.TypeS(Data.Public, Data.u64)) i0 "0" p p var4 true (label^(Int.toString incr)^"T2") (label^(Int.toString incr)^"I2")
+          val args = get_Arguments var5 p []
+          val exit1 = Data.UncondExitS((label^(Int.toString incr)^"L1", p), args, p)
+          val newblock = Data.BlockS(entry, res@start1@start2@expr1, exit1, p)
+          val var6 = incr_Arguments var5
+          val args2 = get_Arguments var6 p []
+          val (i1, var7) = get_Variable var6 i (Data.TypeS(Data.Public, Data.u64)) var6 false
+          val cond1 = get_Condition_Equal i1 e1 var7 p (label^(Int.toString incr)^"T1")
+          val entry2 = Data.CondEntryS(cond1, (label^(Int.toString incr)^"L1", p), (label^(Int.toString incr)^"L2", p), args2, p)
+          val (block2, entry3, stats, var8) = comp_S [newblock] [] ss entry2 var7 (label^"for") 0
+          val unused = get_unused var7 var8
+          val args3 = get_Arguments var8 p unused
+          val (i2, var9) = get_Variable var8 i (Data.TypeS(Data.Public, Data.u64)) var8 false
+          val cond2 = get_Condition_Equal i2 e2 var9 p (label^(Int.toString incr)^"T2")
+          val exit2 = Data.CondExitS(cond2, (label^(Int.toString incr)^"L3", p), (label^(Int.toString incr)^"L2", p), args3, p)
           val newblock2 = Data.BlockS(entry3, stats, exit2, p)
-          val var9 = incr_Arguments var8
-          val args4 = get_Arguments var9 p 
-          val entry4 = Data.UncondEntryS(("L3", p), args4, p)
-          val (i3, var10) = get_Variable var9 i (Data.TypeS(Data.Public, Data.u64)) var9
-          val (expr2, var11) = comp_E e2 "^" (Data.TypeS(Data.Public, Data.u64)) "0" i3 p p var10 true
+          val var10 = incr_Arguments var9
+          val args4 = get_Arguments var10 p unused
+          val entry4 = Data.UncondEntryS((label^(Int.toString incr)^"L3", p), args4, p)
+          val (i3, var11) = get_Variable var10 i (Data.TypeS(Data.Public, Data.u64)) var10 false
+          val (expr2, finish2, var12) = comp_E_condF e2 "^" (Data.TypeS(Data.Public, Data.u64)) "0" i3 p p var11 true (label^(Int.toString incr)^"T2") (label^(Int.toString incr)^"I2")
+          val (_, finish1, var13) = comp_E_condF e1 "^" (Data.TypeS(Data.Public, Data.u64)) "0" i3 p p var12 true (label^(Int.toString incr)^"T1") (label^(Int.toString incr)^"I1")
         in
-          (block@block2@[newblock2], entry4, expr2, var11)
+          (block@block2@[newblock2], entry4, expr2@finish2@finish1, var11)
         end
-    | comp_S block res (Hermes.Block(d, ss, p)) entry var = (* Blocks *)
+    | comp_S block res (Hermes.Block(d, ss, p)) entry var label incr = (* Blocks *)
         let
-          val (block2, entry2, stats, var2) = comp_Block block res ss entry var
+          val (block2, entry2, stats, var2) = comp_Block block res ss entry var label incr
         in
           (block2, entry2, stats, var2)
         end
   (* Compile Blocks *)
-  and comp_Block block res [] entry var = (block, entry, res, var)
-    | comp_Block block res (s :: ss) entry var =
+  and comp_Block block res [] entry var label incr = (block, entry, res, var)
+    | comp_Block block res (s :: ss) entry var label incr =
         let
-          val (block2, entry2, stats, var2) = comp_S block res s entry var
+          val (block2, entry2, stats, var2) = comp_S block res s entry var label incr
         in
-          comp_Block block2 stats ss entry2 var2
+          case s of
+            (Hermes.For(_)) =>
+              let
+                val unused = get_unused var var2
+                val newvar = get_Arguments_Variable var2 unused
+
+              in
+                comp_Block block2 stats ss entry2 newvar label (incr+1)
+              end
+          | _ =>
+            comp_Block block2 stats ss entry2 var2 label incr
         end
 
   (* Compile Begin entry *)
@@ -772,8 +948,8 @@ struct
           val (args, var2) = comp_Args pargs var []
         in
           if i = 0
-          then (Data.BeginS(("main", p), args, p), var2)
-          else (Data.BeginS((f, p), args, p), var2)
+          then (Data.BeginS(("main", p), args, p), "main", var2)
+          else (Data.BeginS((f, p), args, p), f, var2)
         end
   
   (* Compile End exit *)
@@ -790,9 +966,9 @@ struct
   fun comp_P [] i = []
     | comp_P ((f, pars, s, p) :: ps) i =
         let
-          val (entry, var) = comp_Entry f pars i p []
+          val (entry, label, var) = comp_Entry f pars i p []
           val _ = TextIO.print("[" ^ printVar var)
-          val (block, entry2, stats, var2) = comp_S [] [] s entry var
+          val (block, entry2, stats, var2) = comp_S [] [] s entry var label 0
           val (exit, var3) = comp_Exit f pars i p var2
           val _ = TextIO.print("[" ^ printVar var3)
         in

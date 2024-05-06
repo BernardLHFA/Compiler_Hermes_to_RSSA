@@ -1,0 +1,5 @@
+rc5(public u64 x, public u64 y)
+	if (y + 2)
+		x++;
+	else
+		x--;

@@ -1,6 +1,15 @@
-rc5(public u64 x)
-	for(i = 2; 5)
+rc5(public u32 x, public u64 y[])
+	for(i = 0; 5)
 	{
-		x++;
+		for(j = y[0]; 3)
+		{
+			x++;
+			j++;
+		}
+		for(j = 0; 2)
+		{
+			x--;
+			j++;
+		}
 		i++;
 	}
