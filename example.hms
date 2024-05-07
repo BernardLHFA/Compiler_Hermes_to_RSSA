@@ -1,15 +1,17 @@
-rc5(public u32 x, public u64 y[])
-	for(i = 0; 5)
-	{
-		for(j = y[0]; 3)
-		{
-			x++;
-			j++;
+rc5(public u32 x, public u64 y, public u64 z)
+{
+	if(x){
+		if(y >= 2){
+			z++;
+		}else{
+			z--;
 		}
-		for(j = 0; 2)
-		{
-			x--;
-			j++;
+		if(z != 0){
+			y++;
+		}else{
+			y--;
 		}
-		i++;
+	}else{
+		z++;
 	}
+}

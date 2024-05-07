@@ -155,7 +155,7 @@ struct
         | "<" => if hLess64 v1 v2 then hMax64 else []
         | "<=" => if hLeq64 v1 v2 then hMax64 else []
         | ">" => if hGreater64 v1 v2 then hMax64 else []
-        | "=>" => if hGeq64 v1 v2 then hMax64 else []
+        | ">=" => if hGeq64 v1 v2 then hMax64 else []
         | _ => raise Error ("Simbol not allowed", p)
   
   (* Creates a new environment when accessing a new block *)
