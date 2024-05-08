@@ -1,17 +1,8 @@
 rc5(public u32 x, public u64 y, public u64 z)
 {
-	if(x){
-		if(y >= 2){
-			z++;
-		}else{
-			z--;
-		}
-		if(z != 0){
-			y++;
-		}else{
-			y--;
-		}
+	if(y+z){
+		x++;
 	}else{
-		z++;
+		x--;
 	}
 }

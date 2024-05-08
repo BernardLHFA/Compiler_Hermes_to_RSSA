@@ -1,17 +1,13 @@
-rc5(public u32 x, public u64 y, public u64 z)
+rc5(public u64 ct[], public u64 S[])
 {
-	if(x){
-		if(y >= 2){
-			z++;
-		}else{
-			z--;
+	public u64 A, B;
+	A <-> ct[0]; @ B <-> ct[1]; @
+	{
+		A += S[0]; B += S[1];
+		for (i=2; size S) {
+			A ^= B; A <<= B; A += S[i];
+			B <-> A;
+			i++;
 		}
-		if(z != 0){
-			y++;
-		}else{
-			y--;
-		}
-	}else{
-		z++;
 	}
 }
