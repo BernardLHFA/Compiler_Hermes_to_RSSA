@@ -78,12 +78,12 @@ struct
         ((get_Var f), true)
 
   (* get type of variable *)
-  fun get_Type (Data.CstS(s, p)) rho = Data.TypeS(Data.Public, Data.u64)
-    | get_Type (Data.VarS(v)) [] = raise Error ("Variable " ^ (get_Var v) ^ " not defined", (get_Pos v))
-    | get_Type (Data.VarS(v)) ((t, b) :: rho) =
+  fun get_Type (Data.CstS(s, p)) rho t = t
+    | get_Type (Data.VarS(v)) [] t = raise Error ("Variable " ^ (get_Var v) ^ " not defined", (get_Pos v))
+    | get_Type (Data.VarS(v)) ((t, b) :: rho) ot =
         if (get_Var v) = b
         then t
-        else get_Type (Data.VarS(v)) rho
+        else get_Type (Data.VarS(v)) rho ot
 
   (* check if atom can be used withouth modifying the environment *)
   fun check_Use rho (Data.CstS(s, p)) = true
@@ -109,8 +109,8 @@ struct
         if check_Use rho a1 andalso check_Use rho a2
         then 
           let
-            val t1 = get_Type a1 rho
-            val t2 = get_Type a2 rho
+            val t1 = get_Type a1 rho (Data.TypeS(Data.Public, Data.u64))
+            val t2 = get_Type a2 rho (Data.TypeS(Data.Public, Data.u64))
           in
             if isPublic t1
             then
@@ -144,7 +144,7 @@ struct
   (* check if memory is valid*)
   fun check_M rho (Data.MemoryS(t, a, p)) =
         let
-          val t2 = get_Type a rho
+          val t2 = get_Type a rho (Data.TypeS(Data.Public, Data.u64))
         in
           if t2 = (Data.TypeS(Data.Public, Data.u64))
           then
@@ -159,7 +159,7 @@ struct
   
   (* check if reveal and hide functions are valid *)
   fun check_TChange rho (Data.RevealS(t, a, p)) =
-        if t = get_Type a rho
+        if t = get_Type a rho t
         then
           let
             val rho2 = check_A_rem rho a
@@ -168,7 +168,7 @@ struct
           end
         else raise Error ("Mismatched types", p)
     | check_TChange rho (Data.HideS(t, a, p)) =
-        if t = get_Type a rho
+        if t = get_Type a rho t
         then
           let
             val rho2 = check_A_rem rho a
@@ -210,7 +210,7 @@ struct
   (* check if operations are valid *)
   fun check_O rho (Data.SimOp2S(a)) =
         let
-          val t = get_Type a rho
+          val t = get_Type a rho (Data.TypeS(Data.Public, Data.u64))
         in
           if isPublic t
           then
@@ -230,8 +230,8 @@ struct
         end
     | check_O rho (Data.Op2S(s, a1, a2, p)) =
         let
-          val t1 = get_Type a1 rho
-          val t2 = get_Type a2 rho
+          val t1 = get_Type a1 rho (Data.TypeS(Data.Public, Data.u64))
+          val t2 = get_Type a2 rho (Data.TypeS(Data.Public, Data.u64))
         in
           if isPublic t1
           then
@@ -278,9 +278,9 @@ struct
         end
 
   (* check if updates are valid *)
-  fun check_U rho (Data.UpdOp2S(s, a, e, p)) =
+  fun check_U rho (Data.UpdOp2S(s, a, e, p)) t0 =
         let
-          val t = get_Type a rho
+          val t = get_Type a rho t0
           val rho2 = check_A_rem rho a
           val (ptype, rho3) = check_O rho2 e
         in
@@ -297,7 +297,7 @@ struct
   (* Simple Assignment of atom *)
     | check_S gamma rho (Data.AssignS(t, a, u, p) :: s) =
         let
-          val (t2, rho2) = check_U rho u
+          val (t2, rho2) = check_U rho u t
           val rho3 = check_A rho2 t a
         in
           if t = t2
@@ -307,7 +307,7 @@ struct
     (* Assignment with single atom *)
     | check_S gamma rho (Data.Assign2S(t, a1, a2, p) :: s) =
         let
-          val t2 = get_Type a2 rho
+          val t2 = get_Type a2 rho t
           val rho2 = check_A_rem rho a2
           val rho3 = check_A rho2 t a1
         in
@@ -324,8 +324,8 @@ struct
     (* Double Assignment *)
     | check_S gamma rho (Data.DAssignS(t1, a1, t2, a2, a3, a4, p) :: s) = 
         let
-          val t3 = get_Type a3 rho
-          val t4 = get_Type a4 rho
+          val t3 = get_Type a3 rho t1
+          val t4 = get_Type a4 rho t2
           val rho2 = check_A_rem rho a3
           val rho3 = check_A_rem rho2 a4
           val rho4 = check_A rho3 t1 a1
@@ -376,7 +376,7 @@ struct
     (* Variable-Memory Swap*)
     | check_S gamma rho (Data.SwapS(a1, m, a2, p) :: s) =
         let
-          val t = get_Type a2 rho
+          val t = get_Type a2 rho (get_Type_M m)
           val rho2 = check_A_rem rho a2
           val rho3 = check_A rho2 t a1
         in
@@ -524,7 +524,7 @@ struct
           (Data.VarS(v)) => 
             if lookup (get_Var v) rho
             then
-              if t = get_Type a rho
+              if t = get_Type a rho t
               then check_Exit_final args rho
               else raise Error ("Exit variable " ^ (get_Var v) ^ " does not have the correct type", (get_Pos v))
             else raise Error ("Exit variable " ^ (get_Var v) ^ " does not correspond to environment", (get_Pos v))

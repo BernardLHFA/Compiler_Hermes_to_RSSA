@@ -209,6 +209,32 @@ struct
         in
           (indexCreate@start, finish@indexEmpty, Data.VarS(T2, p), var10)
         end
+    | use_LVal (Hermes.UnsafeArray(y, e, p)) var =
+        let
+          val t = get_Type (y^"T") var p
+          val size = (get_Size t) div 8
+          val var2 = incr_Variable var "T"
+          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Secret, Data.u64)) var2 false
+          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Secret, Data.u64)) T1 "0" p p var3 true
+          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Secret, Data.u64)) "0" T1 p p var4 true
+          val var6 = incr_Variable var5 "I"
+          val (I1, var7) = get_Variable var6 "I" (Data.TypeS(Data.Secret, Data.u64)) var6 false
+          val var8 = incr_Variable var7 "T"
+          val (T2, var9) = get_Variable var8 "T" (Data.TypeS(Data.Secret, Data.u64)) var8 false
+          val (yT, var10) = get_Variable var9 (y^"T") t var9 true
+          val var11 = incr_Variable var10 "I"
+          val (I2, var12) = get_Variable var11 "I" (Data.TypeS(Data.Secret, Data.u64)) var11 false
+          val var13 = incr_Variable var12 "I"
+          val (I3, var14) = get_Variable var13 "I" (Data.TypeS(Data.Secret, Data.u64)) var13 false
+          val start = [Data.AssignS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I1, p), Data.UpdOp2S("+", Data.CstS("0", p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
+                      Data.TAssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I2, p), Data.RevealS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I1, p), p), p),
+                      Data.SwapS(Data.VarS(T2, p), Data.MemoryS(t, Data.VarS(I2, p), p), Data.CstS("0", p), p)]
+          val finish = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(t, Data.VarS(I2, p), p), Data.VarS(T2, p), p),
+                        Data.TAssignS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I3, p), Data.HideS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I2, p), p), p),
+                        Data.AssignS(Data.TypeS(Data.Secret, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(I3, p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p)]
+        in
+          (indexCreate@start, finish@indexEmpty, Data.VarS(T2, p), var14)
+        end
   (* Compile L-Values when being updated *)
   and comp_LVal (Hermes.Var(x, p)) var =
         let
@@ -234,6 +260,28 @@ struct
           val finish = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(I, p), Data.Op2S("+", Data.VarS(xT, p), Data.VarS(T1, p), p), p), p)]
         in
           (indexCreate@start, finish@indexEmpty, t, I, "", p, var8, false)
+        end
+    | comp_LVal (Hermes.UnsafeArray(x, e, p)) var =
+        let
+          val t = get_Type (x^"T") var p
+          val size = (get_Size t) div 8
+          val var2 = incr_Variable var "T"
+          val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Secret, Data.u64)) var2 false
+          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Secret, Data.u64)) T1 "0" p p var3 true
+          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Secret, Data.u64)) "0" T1 p p var4 true
+          val var6 = incr_Variable var5 "I"
+          val (I1, var7) = get_Variable var6 "I" (Data.TypeS(Data.Secret, Data.u64)) var6 false
+          val (xT, var8) = get_Variable var7 (x^"T") t var7 true
+          val var9 = incr_Variable var8 "I"
+          val (I2, var10) = get_Variable var9 "I" (Data.TypeS(Data.Public, Data.u64)) var9 false
+          val var11 = incr_Variable var9 "I"
+          val (I3, var12) = get_Variable var11 "I" (Data.TypeS(Data.Secret, Data.u64)) var11 false
+          val start = [Data.AssignS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I1, p), Data.UpdOp2S("+", Data.CstS("0", p), Data.Op2S("+", Data.VarS(xT, p), Data.VarS(T1, p), p), p), p),
+                      Data.TAssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I2, p), Data.RevealS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I1, p), p), p)]
+          val finish = [Data.TAssignS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I3, p), Data.HideS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I2, p), p), p),
+                        Data.AssignS(Data.TypeS(Data.Secret, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(I3, p), Data.Op2S("+", Data.VarS(xT, p), Data.VarS(T1, p), p), p), p)]
+        in
+          (indexCreate@start, finish@indexEmpty, t, I2, "", p, var12, false)
         end
   (* Compile Expressions *)
   and comp_E (Hermes.Const(i, p)) upop t x x0 p2 p3 var bool =

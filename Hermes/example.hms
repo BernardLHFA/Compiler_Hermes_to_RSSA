@@ -1,8 +1,5 @@
-rc5(public u32 x, public u64 y, public u64 z)
+rc5(public u64 x[], public u64 y[])
 {
-	if(y+z){
-		x++;
-	}else{
-		x--;
-	}
+	for(i=0;x);
 }
+
