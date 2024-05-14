@@ -78,6 +78,13 @@ struct
 
   (* get name of variable *)
   fun get_Var (s, p) = s
+
+  fun get_Size (Data.TypeS(v, s)) =
+        case s of
+          (Data.u8) => 8
+        | (Data.u16) => 16
+        | (Data.u32) => 32
+        | (Data.u64) => 64
   
   (* lookup in environment *)
   fun lookup x [] pos =
@@ -133,8 +140,24 @@ struct
           "+" => limitZ z (hAdd64 v1 v2)
         | "-" => limitZ z (hSub64 v1 v2)
         | "^" => limitZ z (hXor64 v1 v2)
-        | "<<" => limitZ z (hShiftL64 v1 v2)
-        | ">>" => limitZ z (hShiftR64 v1 v2)
+        | "<<" => 
+          let
+            val amount = h2int (hMod64 v2 (int2h z) p)
+                       (* rotation amount is mod size *)
+            val amountL = int2h amount
+            val amountR = int2h (z - amount)
+          in
+            limitZ z (hAdd64 (hShiftL64 v1 amountL) (hShiftR64 v1 amountR))
+          end
+        | ">>" => 
+          let
+            val amount = h2int (hMod64 v2 (int2h z) p)
+                       (* rotation amount is mod size *)
+            val amountR = int2h amount
+            val amountL = int2h (z - amount)
+          in
+            limitZ z (hAdd64 (hShiftR64 v1 amountR) (hShiftL64 v1 amountL))
+          end
         | _ => raise Error ("Simbol not allowed", p)
   
   (* Calculations for binary operations used for memories *)
@@ -238,7 +261,7 @@ fun rho_return [] rho p = []
             in
               if (int2h z) = z0
               then ((get_Var x), (z0, Variable loc))::rho_new_Args args rho p
-              else raise Error ("Variables between jumps of different sizes", (get_Pos x))
+              else raise Error ("Variables " ^ (get_Var x) ^ " between jumps of different sizes", (get_Pos x))
             end
         | (Data.CstS(s, p)) => rho_new_Args args rho p
 
@@ -498,18 +521,22 @@ fun rho_return [] rho p = []
                 (Data.VarS(v2)) =>
                   do_S gamma (rho2@[((get_Var v2), (z0, Variable loc))]) s oprg
               | (Data.CstS(c, _)) =>
-                  if (limitZ 64 (string2h c (0, 0))) = !loc
+                  if h2int(limitZ 64 (string2h c (0, 0))) = h2int (!loc)
                   then do_S gamma rho2 s oprg
                   else raise Error ("Variable should be equal to constant", p))
             end
         | (Data.CstS(c, _)) =>
-            (case a1 of
-              (Data.VarS(v2)) =>
-                do_S gamma (rho@[((get_Var v2), ((int2h 64), Variable (ref (limitZ 64 (string2h c (0, 0))))))]) s oprg
-            | (Data.CstS(c2, _)) =>
-                if c = c2
-                then do_S gamma rho s oprg
-                else raise Error ("Constants are not equal", p)))
+            let
+              val size = get_Size t
+            in
+              (case a1 of
+                (Data.VarS(v2)) =>
+                  do_S gamma (rho@[((get_Var v2), ((int2h size), Variable (ref (limitZ 64 (string2h c (0, 0))))))]) s oprg
+              | (Data.CstS(c2, _)) =>
+                  if c = c2
+                  then do_S gamma rho s oprg
+                  else raise Error ("Constants are not equal", p))
+            end)
     | do_S gamma rho (Data.DAssignS(t1, a1, t2, a2, a3, a4, p) :: s) oprg = (* Double Assignement *)
         (case (a3, a4) of
           (Data.VarS(v1), Data.VarS(v2)) =>

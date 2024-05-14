@@ -1,5 +1,5 @@
-rc5(public u64 x[], public u64 y[])
+encrypt(u32 x)
 {
-	for(i=0;x);
+  x -= 1;
 }
 
