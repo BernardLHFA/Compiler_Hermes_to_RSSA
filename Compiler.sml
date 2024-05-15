@@ -74,6 +74,12 @@ struct
         then get_unused var1 res
         else [(t, a, n, b)]@(get_unused var1 res)
   
+  fun is_Array x [] = false
+    | is_Array x ((t, a, n, b) :: res) =
+        if x = a
+        then b
+        else is_Array x res
+  
   (* Compile a variable either as a constant or a variable *)
   fun comp_Var x p =
         case String.sub(x, 0) of
@@ -925,6 +931,101 @@ struct
           (expr, [], var2)
         end
   
+  fun get_Called_Args [] var = ([], [], [], [], var)
+    | get_Called_Args ((Hermes.Var(x, p)) :: lvals) var =
+        if is_Array (x^"T") var
+        then
+          let
+            val t0 = get_Type (x^"T") var p
+            val (T0, var2) = get_Variable var (x^"T") t0 var true
+            val (S0, var3) = get_Variable var2 (x^"S") (Data.TypeS(Data.Public, Data.u64)) var2 true
+            val var4 = incr_Variable var3 (x^"T")
+            val var5 = incr_Variable var4 (x^"S")
+            val (T1, var6) = get_Variable var5 (x^"T") t0 var5 true
+            val (S1, var7) = get_Variable var6 (x^"S") (Data.TypeS(Data.Public, Data.u64)) var6 true
+            val oa = [Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(T0, p)),
+                      Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(S0, p))]
+            val na = [Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(T1, p)),
+                      Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(S1, p))]
+            val (start, finish, oldargs, newargs, var8) = get_Called_Args lvals var7
+          in
+            (start, finish, oa@oldargs, na@newargs, var8)
+          end
+        else
+          let
+            val t0 = get_Type x var p
+            val (x0, var2) = get_Variable var x t0 var false
+            val var3 = incr_Variable var2 x
+            val (x1, var4) = get_Variable var3 x t0 var3 false
+            val oa = [Data.ArgS(t0, Data.VarS(x0, p))]
+            val na = [Data.ArgS(t0, Data.VarS(x1, p))]
+            val (start, finish, oldargs, newargs, var5) = get_Called_Args lvals var4
+          in
+            (start, finish, oa@oldargs, na@newargs, var5)
+          end
+    | get_Called_Args ((Hermes.Array(y, e, p)) :: lvals) var =
+        let
+          val t0 = get_Type (y^"T") var p
+          val size = (get_Size t0) div 8
+          val var2 = incr_Variable var "I"
+          val (I0, var3) = get_Variable var2 "I" (Data.TypeS(Data.Public, Data.u64)) var2 false
+          val var4 = incr_Variable var3 "T"
+          val (T0, var5) = get_Variable var4 "T" (Data.TypeS(Data.Public, Data.u64)) var4 false
+          val (exprD, exprF, var6) = comp_E_contD e "^" (Data.TypeS(Data.Public, Data.u64)) T0 "0" p p var5 true
+          val var7 = incr_Variable var6 "T"
+          val (T1, var8) = get_Variable var7 "T" (Data.TypeS(Data.Public, Data.u64)) var7 false
+          val var9 = incr_Variable var8 "T"
+          val (TT0, var10) = get_Variable var9 "T" t0 var9 false
+          val (yT, var11) = get_Variable var10 (y^"T") t0 var10 true
+          val swap1 = [Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(T1, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("*", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p),
+                      Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(I0, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
+                      Data.SwapS(Data.VarS(TT0, p), Data.MemoryS(t0, Data.VarS(I0, p), p), Data.CstS("0", p), p)]
+          val var12 = incr_Variable var11 "T"
+          val (TT1, var13) = get_Variable var12 "T" t0 var12 false
+          val swap2 = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(t0, Data.VarS(I0, p), p), Data.VarS(TT1, p), p),
+                      Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(I0, p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
+                      Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(T1, p), Data.Op2S("*", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p)]
+          val oa = [Data.ArgS(t0, Data.VarS(TT0, p))]
+          val na = [Data.ArgS(t0, Data.VarS(TT1, p))]
+          val (startres, finishres, oldargs, newargs, var14) = get_Called_Args lvals var13
+        in
+          (exprD@swap1@startres, finishres@swap2@exprF, oa@oldargs, na@newargs, var14)
+        end
+    | get_Called_Args ((Hermes.UnsafeArray(y, e, p)) :: lvals) var =
+        let
+          val t0 = get_Type (y^"T") var p
+          val size = (get_Size t0) div 8
+          val var2 = incr_Variable var "I"
+          val (I0, var3) = get_Variable var2 "I" (Data.TypeS(Data.Secret, Data.u64)) var2 false
+          val var4 = incr_Variable var3 "T"
+          val (T0, var5) = get_Variable var4 "T" (Data.TypeS(Data.Secret, Data.u64)) var4 false
+          val (exprD, exprF, var6) = comp_E_contD e "^" (Data.TypeS(Data.Secret, Data.u64)) T0 "0" p p var5 true
+          val var7 = incr_Variable var6 "T"
+          val (T1, var8) = get_Variable var7 "T" (Data.TypeS(Data.Secret, Data.u64)) var7 false
+          val var9 = incr_Variable var8 "T"
+          val (TT0, var10) = get_Variable var9 "T" t0 var9 false
+          val (yT, var11) = get_Variable var10 (y^"T") t0 var10 true
+          val var12 = incr_Variable var11 "I"
+          val (I1, var13) = get_Variable var12 "I" (Data.TypeS(Data.Public, Data.u64)) var12 false
+          val swap1 = [Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.VarS(T1, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("*", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p),
+                      Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.VarS(I0, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
+                      Data.TAssignS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(I1, p), Data.RevealS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I0, p), p), p),
+                      Data.SwapS(Data.VarS(TT0, p), Data.MemoryS(t0, Data.VarS(I1, p), p), Data.CstS("0", p), p)]
+          val var14 = incr_Variable var13 "T"
+          val (TT1, var15) = get_Variable var14 "T" t0 var14 false
+          val var16 = incr_Variable var15 "I"
+          val (I2, var17) = get_Variable var16 "I" (Data.TypeS(Data.Secret, Data.u64)) var16 false
+          val swap2 = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(t0, Data.VarS(I1, p), p), Data.VarS(TT1, p), p),
+                      Data.TAssignS((Data.TypeS(Data.Secret, Data.u64)), Data.VarS(I2, p), Data.HideS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I1, p), p), p),
+                      Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(I2, p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
+                      Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(T1, p), Data.Op2S("*", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p)]
+          val oa = [Data.ArgS(t0, Data.VarS(TT0, p))]
+          val na = [Data.ArgS(t0, Data.VarS(TT1, p))]
+          val (startres, finishres, oldargs, newargs, var18) = get_Called_Args lvals var17
+        in
+          (exprD@swap1@startres, finishres@swap2@exprF, oa@oldargs, na@newargs, var18)
+        end
+  
   fun comp_Decl [] var = ([], var)
     | comp_Decl (Hermes.ConstDecl(y, i, p) :: res) var =
         let
@@ -1513,6 +1614,20 @@ struct
           val (_, finish1, var13) = comp_E_condF e1 "^" (Data.TypeS(Data.Public, Data.u64)) "0" i3 p p var12 true (label^(Int.toString incr)^"T1") (label^(Int.toString incr)^"I1")
         in
           (block@block2@[newblock2], entry4, expr2@finish2@finish1, var11)
+        end
+    | comp_S block res (Hermes.Call(f, lvals, p)) entry var label incr =
+        let
+          val (start, finish, oldargs, newargs, var2) = get_Called_Args lvals var
+          val expr = [Data.AssignArgS(newargs, Data.CallS((f, p), oldargs, p), p)]
+        in
+          (block, entry, res@start@expr@finish, var2)
+        end
+    | comp_S block res (Hermes.Uncall(f, lvals, p)) entry var label incr =
+        let
+          val (start, finish, oldargs, newargs, var2) = get_Called_Args lvals var
+          val expr = [Data.AssignArgS(newargs, Data.UncallS((f, p), oldargs, p), p)]
+        in
+          (block, entry, res@start@expr@finish, var2)
         end
     | comp_S block res (Hermes.Block(d, ss, p)) entry var label incr = (* Blocks *)
         let

@@ -113,7 +113,7 @@ struct
         if x = y then rem_rho x rho else (y, v)::rem_rho x rho
   
   (* Remove arguments from environment *)
-  fun rem_rho_Arg [] rho = []
+  fun rem_rho_Arg [] rho = rho
     | rem_rho_Arg (Data.ArgS(t, a):: arg) rho =
         case a of
           (Data.VarS(v)) => rem_rho_Arg arg (rem_rho (get_Var v) rho)
@@ -122,16 +122,16 @@ struct
   (* Calculations for binary operations *)
   fun BinOp bop z v1 v2 p =
         case bop of
-          "+" => limitZ z (hAdd64 v1 v2)
-        | "-" => limitZ z (hSub64 v1 v2)
-        | "^" => limitZ z (hXor64 v1 v2)
-        | "<<" => limitZ z (hShiftL64 v1 v2)
-        | ">>" => limitZ z (hShiftR64 v1 v2)
-        | "*" => limitZ z (hTimes64 v1 v2)
-        | "div" => limitZ z (hDiv64 v1 v2 p)
-        | "mod" => limitZ z (hMod64 v1 v2 p)
-        | "&" => limitZ z (hAnd64 v1 v2)
-        | "|" => limitZ z (hOr64 v1 v2)
+          "+" => hAdd64 v1 v2
+        | "-" => hSub64 v1 v2
+        | "^" => hXor64 v1 v2
+        | "<<" => hShiftL64 v1 v2
+        | ">>" => hShiftR64 v1 v2
+        | "*" => hTimes64 v1 v2
+        | "div" => hDiv64 v1 v2 p
+        | "mod" => hMod64 v1 v2 p
+        | "&" => hAnd64 v1 v2
+        | "|" => hOr64 v1 v2
         | _ => raise Error ("Simbol not allowed", p)
   
   (* Calculations for binary operations in updates *)
