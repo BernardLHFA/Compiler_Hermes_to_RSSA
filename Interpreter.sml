@@ -34,6 +34,14 @@ struct
       new
     end
   
+  fun powerOf a 0 = (int2h 1)
+    | powerOf a z =
+        let
+          val power = powerOf a (z-1)
+        in
+          limitZ 64 (hTimes64 a power)
+        end
+
   (* Loading elements inside of memories *)
   fun loadMem(mem, address, size) =
     if size = 0 then []
@@ -50,20 +58,34 @@ struct
   
   fun addByte [] = limitZ 8 (int2h 0)
     | addByte (x :: rm) =
-        limitZ 64 (hAdd64 x (addByte rm))
+        let
+          val size = List.length((x :: rm))
+          val power = powerOf (int2h 256) (size-1)
+          val res = limitZ 64 (hTimes64 x power) 
+        in
+          limitZ 64 (hAdd64 res (addByte rm))
+        end
   
   fun turnByte(z, h, p) =
         case z of
           64 => 
-            if (h2int h) <= (h2int (limitZ 32 hMax64))
+            if hLeq64 h (limitZ 32 hMax64)
             then turnByte((z div 2), (int2h 0), p)@turnByte((z div 2), h, p)
-            else turnByte((z div 2), (limitZ 64 ((hDiv64 h (hAdd64 (limitZ 32 hMax64) (int2h 1)) p))), p)@turnByte((z div 2), (limitZ 64 (hMod64 h (hAdd64 (limitZ 32 hMax64) (int2h 1)) p)), p)
+            else 
+              let
+                val hdiv = hShiftR64 h (int2h 32)
+                val power = powerOf (int2h 256) 4
+                val hfull = hTimes64 hdiv power
+                val hmod = hSub64 h hfull
+              in
+                turnByte((z div 2), (limitZ 64 hdiv), p)@turnByte((z div 2), (limitZ 64 hmod), p)
+              end
         | 32 =>
-            if (h2int h) <= (h2int (limitZ 16 hMax64))
+            if hLeq64 h (limitZ 16 hMax64)
             then turnByte((z div 2), (int2h 0), p)@turnByte((z div 2), h, p)
             else turnByte((z div 2), (limitZ 64 ((hDiv64 h (hAdd64 (limitZ 16 hMax64) (int2h 1)) p))), p)@turnByte((z div 2), (limitZ 64 (hMod64 h (hAdd64 (limitZ 16 hMax64) (int2h 1)) p)), p)
         | 16 => 
-            if (h2int h) <= (h2int (limitZ 8 hMax64))
+            if hLeq64 h (limitZ 8 hMax64)
             then [(limitZ 8 (int2h 0))]@turnByte((z div 2), h, p)
             else [(hDiv64 h (hAdd64 (limitZ 8 hMax64) (int2h 1)) p)]@turnByte((z div 2), (limitZ 64 (hMod64 h (hAdd64 (limitZ 8 hMax64) (int2h 1)) p)), p)
         | 8 =>
