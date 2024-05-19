@@ -23,6 +23,11 @@ struct
   fun incr_Arguments [] = []
     | incr_Arguments ((t, a, n, b) :: res) =
         [(t, a, (n+1), b)]@(incr_Arguments res)
+  
+  fun get_Power 0 = 0
+    | get_Power 1 = 0
+    | get_Power z =
+        1 + (get_Power (z div 2))
 
   (* Get a variable from the list or store a new one if not present *)
   fun get_Variable [] x t ovar isArray = 
@@ -159,11 +164,11 @@ struct
     | use_LVal (Hermes.Array(y, e, p)) var =
         let
           val t = get_Type (y^"T") var p
-          val size = (get_Size t) div 8
+          val size = (get_Power (get_Size t)) - 3
           val var2 = incr_Variable var "T"
           val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
-          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
-          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T1 p p var4 true
+          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
+          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T1 p p var4 true
           val var6 = incr_Variable var5 "I"
           val (I, var7) = get_Variable var6 "I" (Data.TypeS(Data.Public, Data.u64)) var6 false
           val var8 = incr_Variable var7 "T"
@@ -179,11 +184,11 @@ struct
     | use_LVal (Hermes.UnsafeArray(y, e, p)) var =
         let
           val t = get_Type (y^"T") var p
-          val size = (get_Size t) div 8
+          val size = (get_Power (get_Size t)) - 3
           val var2 = incr_Variable var "T"
           val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Secret, Data.u64)) var2 false
-          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Secret, Data.u64)) T1 "0" p p var3 true
-          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Secret, Data.u64)) "0" T1 p p var4 true
+          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Secret, Data.u64)) T1 "0" p p var3 true
+          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Secret, Data.u64)) "0" T1 p p var4 true
           val var6 = incr_Variable var5 "I"
           val (I1, var7) = get_Variable var6 "I" (Data.TypeS(Data.Secret, Data.u64)) var6 false
           val var8 = incr_Variable var7 "T"
@@ -215,11 +220,11 @@ struct
     | comp_LVal (Hermes.Array(x, e, p)) var =
         let
           val t = get_Type (x^"T") var p
-          val size = (get_Size t) div 8
+          val size = (get_Power (get_Size t)) - 3
           val var2 = incr_Variable var "T"
           val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Public, Data.u64)) var2 false
-          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
-          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T1 p p var4 true
+          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
+          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T1 p p var4 true
           val var6 = incr_Variable var5 "I"
           val (I, var7) = get_Variable var6 "I" (Data.TypeS(Data.Public, Data.u64)) var6 false
           val (xT, var8) = get_Variable var7 (x^"T") t var7 true
@@ -231,11 +236,11 @@ struct
     | comp_LVal (Hermes.UnsafeArray(x, e, p)) var =
         let
           val t = get_Type (x^"T") var p
-          val size = (get_Size t) div 8
+          val size = (get_Power (get_Size t)) - 3
           val var2 = incr_Variable var "T"
           val (T1, var3) = get_Variable var2 "T" (Data.TypeS(Data.Secret, Data.u64)) var2 false
-          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Secret, Data.u64)) T1 "0" p p var3 true
-          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Secret, Data.u64)) "0" T1 p p var4 true
+          val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Secret, Data.u64)) T1 "0" p p var3 true
+          val (indexEmpty, var5) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Secret, Data.u64)) "0" T1 p p var4 true
           val var6 = incr_Variable var5 "I"
           val (I1, var7) = get_Variable var6 "I" (Data.TypeS(Data.Secret, Data.u64)) var6 false
           val (xT, var8) = get_Variable var7 (x^"T") t var7 true
@@ -801,10 +806,10 @@ struct
         | (Hermes.Array(y, e, p)) =>
             let
               val ta = get_Type (y^"T") var p
-              val size = (get_Size t) div 8
+              val size = (get_Power (get_Size ta)) - 3
               val var2 = incr_Variable var t0
               val (T1, var3) = get_Variable var2 t0 (Data.TypeS(Data.Public, Data.u64)) var2 false
-              val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
+              val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
               val var5 = incr_Variable var4 i0
               val (I, var6) = get_Variable var5 i0 (Data.TypeS(Data.Public, Data.u64)) var5 false
               val var7 = incr_Variable var6 t0
@@ -872,16 +877,16 @@ struct
         | (Hermes.Array(y, e, p)) =>
             let
               val ta = get_Type (y^"T") var p
-              val size = (get_Size t) div 8
+              val size = (get_Power (get_Size ta)) - 3
               val (I, var2) = get_Variable var i0 (Data.TypeS(Data.Public, Data.u64)) var false
               val (T1, var3) = get_Variable var2 t0 (Data.TypeS(Data.Public, Data.u64)) var2 false
               val swap = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(ta, Data.VarS(I, p), p), Data.VarS(T1, p), p)]
               val var4 = incr_Variable var3 t0
               val (T2, var5) = get_Variable var4 t0 (Data.TypeS(Data.Public, Data.u64)) var4 false
-              val (indexCreate, var6) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T2 "0" p p var5 true
+              val (indexCreate, var6) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T2 "0" p p var5 true
               val (yT, var7) = get_Variable var6 (y^"T") t var6 true
               val finish = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(I, p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T2, p), p), p), p)]
-              val (indexEmpty, var8) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T2 p p var7 true
+              val (indexEmpty, var8) = comp_E (Hermes.Bin(Hermes.ShiftL, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T2 p p var7 true
               val xout = comp_Var x0 p2
               val xin = comp_Var x p2
             in
@@ -966,7 +971,7 @@ struct
     | get_Called_Args ((Hermes.Array(y, e, p)) :: lvals) var =
         let
           val t0 = get_Type (y^"T") var p
-          val size = (get_Size t0) div 8
+          val size = (get_Power (get_Size t0)) - 3
           val var2 = incr_Variable var "I"
           val (I0, var3) = get_Variable var2 "I" (Data.TypeS(Data.Public, Data.u64)) var2 false
           val var4 = incr_Variable var3 "T"
@@ -977,14 +982,14 @@ struct
           val var9 = incr_Variable var8 "T"
           val (TT0, var10) = get_Variable var9 "T" t0 var9 false
           val (yT, var11) = get_Variable var10 (y^"T") t0 var10 true
-          val swap1 = [Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(T1, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("*", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p),
+          val swap1 = [Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(T1, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("<<", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p),
                       Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(I0, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
                       Data.SwapS(Data.VarS(TT0, p), Data.MemoryS(t0, Data.VarS(I0, p), p), Data.CstS("0", p), p)]
           val var12 = incr_Variable var11 "T"
           val (TT1, var13) = get_Variable var12 "T" t0 var12 false
           val swap2 = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(t0, Data.VarS(I0, p), p), Data.VarS(TT1, p), p),
                       Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(I0, p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
-                      Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(T1, p), Data.Op2S("*", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p)]
+                      Data.AssignS((Data.TypeS(Data.Public, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(T1, p), Data.Op2S("<<", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p)]
           val oa = [Data.ArgS(t0, Data.VarS(TT0, p))]
           val na = [Data.ArgS(t0, Data.VarS(TT1, p))]
           val (startres, finishres, oldargs, newargs, var14) = get_Called_Args lvals var13
@@ -994,7 +999,7 @@ struct
     | get_Called_Args ((Hermes.UnsafeArray(y, e, p)) :: lvals) var =
         let
           val t0 = get_Type (y^"T") var p
-          val size = (get_Size t0) div 8
+          val size = (get_Power (get_Size t0)) - 3
           val var2 = incr_Variable var "I"
           val (I0, var3) = get_Variable var2 "I" (Data.TypeS(Data.Secret, Data.u64)) var2 false
           val var4 = incr_Variable var3 "T"
@@ -1007,7 +1012,7 @@ struct
           val (yT, var11) = get_Variable var10 (y^"T") t0 var10 true
           val var12 = incr_Variable var11 "I"
           val (I1, var13) = get_Variable var12 "I" (Data.TypeS(Data.Public, Data.u64)) var12 false
-          val swap1 = [Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.VarS(T1, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("*", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p),
+          val swap1 = [Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.VarS(T1, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("<<", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p),
                       Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.VarS(I0, p), Data.UpdOp2S("^", Data.CstS("0", p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
                       Data.TAssignS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(I1, p), Data.RevealS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I0, p), p), p),
                       Data.SwapS(Data.VarS(TT0, p), Data.MemoryS(t0, Data.VarS(I1, p), p), Data.CstS("0", p), p)]
@@ -1018,7 +1023,7 @@ struct
           val swap2 = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(t0, Data.VarS(I1, p), p), Data.VarS(TT1, p), p),
                       Data.TAssignS((Data.TypeS(Data.Secret, Data.u64)), Data.VarS(I2, p), Data.HideS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I1, p), p), p),
                       Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(I2, p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
-                      Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(T1, p), Data.Op2S("*", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p)]
+                      Data.AssignS((Data.TypeS(Data.Secret, Data.u64)), Data.CstS("0", p), Data.UpdOp2S("^", Data.VarS(T1, p), Data.Op2S("<<", Data.VarS(T0, p), Data.CstS(Int.toString(size), p), p), p), p)]
           val oa = [Data.ArgS(t0, Data.VarS(TT0, p))]
           val na = [Data.ArgS(t0, Data.VarS(TT1, p))]
           val (startres, finishres, oldargs, newargs, var18) = get_Called_Args lvals var17
