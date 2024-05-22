@@ -120,6 +120,11 @@ struct
         | (Data.u32) => 32
         | (Data.u64) => 64
   
+  fun isSecret (Data.TypeS(p, _)) =
+        case p of
+          (Data.Secret) => true
+        | (Data.Public) => false
+  
   (* Compile Update Operations *)
   fun comp_Upop Hermes.Add = "+"
     | comp_Upop Hermes.Sub = "-"
@@ -1031,65 +1036,103 @@ struct
           (exprD@swap1@startres, finishres@swap2@exprF, oa@oldargs, na@newargs, var18)
         end
   
-  fun comp_Decl [] var = ([], var)
-    | comp_Decl (Hermes.ConstDecl(y, i, p) :: res) var =
+  fun get_Size_Array (Hermes.Const(c, p)) =
+        valOf (Int.fromString c)
+  
+  fun comp_Decl [] var pu s = ([], var, pu, s)
+    | comp_Decl (Hermes.ConstDecl(y, i, p) :: res) var pu s =
         let
           val (y0, var2) = get_Variable var y (Data.TypeS(Data.Public, Data.u64)) var false
           val start = [Data.Assign2S((Data.TypeS(Data.Public, Data.u64), Data.VarS(y0, p), Data.CstS(i, p), p))]
-          val (finish, var3) = comp_Decl res var2
+          val (finish, var3, pu2, s2) = comp_Decl res var2 pu s
         in
-          (start@finish, var3)
+          (start@finish, var3, pu2, s2)
         end
-    | comp_Decl (Hermes.VarDecl(y, t, p) :: res) var =
+    | comp_Decl (Hermes.VarDecl(y, t, p) :: res) var pu s =
         let
           val t0 = comp_Type t
           val (y0, var2) = get_Variable var y t0 var false
           val start = [Data.Assign2S((t0, Data.VarS(y0, p), Data.CstS("0", p), p))]
-          val (finish, var3) = comp_Decl res var2
+          val (finish, var3, pu2, s2) = comp_Decl res var2 pu s
         in
-          (start@finish, var3)
+          (start@finish, var3, pu2, s2)
         end
-    | comp_Decl (Hermes.ArrayDecl(y, t, e, p) :: res) var =
+    | comp_Decl (Hermes.ArrayDecl(y, t, e, p) :: res) var pu s =
         let
           val t0 = comp_Type t
-          val (yt, var2) = get_Variable var (y^"T") t0 var true
-          val start = [Data.Assign2S((Data.TypeS(Data.Public, Data.u64), Data.VarS(yt, p), Data.CstS("0", p), p))]
-          val var3 = incr_Variable var2 (y^"S")
-          val (ys, var4) = get_Variable var3 (y^"S") t0 var3 true
-          val (expr, var5) = comp_E e "^" (Data.TypeS(Data.Public, Data.u64)) ys "0" p p var4 true
-          val (finish, var6) = comp_Decl res var5
+          val size = (get_Size t0) div 8
+          val incr = get_Size_Array e
         in
-          (start@expr@finish, var6)
+          if isSecret t0
+          then
+            let
+              val (yt, var2) = get_Variable var (y^"T") t0 var true
+              val start = [Data.Assign2S((Data.TypeS(Data.Public, Data.u64), Data.VarS(yt, p), Data.CstS(Int.toString(s), p), p))]
+              val var3 = incr_Variable var2 (y^"S")
+              val (ys, var4) = get_Variable var3 (y^"S") t0 var3 true
+              val (expr, var5) = comp_E e "^" (Data.TypeS(Data.Public, Data.u64)) ys "0" p p var4 true
+              val (finish, var6, pu2, s2) = comp_Decl res var5 pu (s+(incr*size))
+            in
+              (start@expr@finish, var6, pu2, s2)
+            end
+          else
+            let
+              val (yt, var2) = get_Variable var (y^"T") t0 var true
+              val start = [Data.Assign2S((Data.TypeS(Data.Public, Data.u64), Data.VarS(yt, p), Data.CstS(Int.toString(pu), p), p))]
+              val var3 = incr_Variable var2 (y^"S")
+              val (ys, var4) = get_Variable var3 (y^"S") t0 var3 true
+              val (expr, var5) = comp_E e "^" (Data.TypeS(Data.Public, Data.u64)) ys "0" p p var4 true
+              val (finish, var6, pu2, s2) = comp_Decl res var5 (pu+(incr*size)) s
+            in
+              (start@expr@finish, var6, pu2, s2)
+            end
         end
   
-  fun comp_Undecl [] var = ([], var)
-    | comp_Undecl (Hermes.ConstDecl(y, i, p) :: res) var =
+  fun comp_Undecl [] var pu se = ([], var, pu, se)
+    | comp_Undecl (Hermes.ConstDecl(y, i, p) :: res) var pu se =
         let
           val (y0, var2) = get_Variable var y (Data.TypeS(Data.Public, Data.u64)) var false
           val finish = [Data.Assign2S((Data.TypeS(Data.Public, Data.u64), Data.CstS(i, p), Data.VarS(y0, p), p))]
-          val (start, var3) = comp_Undecl res var2
+          val (start, var3, pu2, se2) = comp_Undecl res var2 pu se
         in
-          (start@finish, var3)
+          (start@finish, var3, pu2, se2)
         end
-    | comp_Undecl (Hermes.VarDecl(y, t, p) :: res) var =
+    | comp_Undecl (Hermes.VarDecl(y, t, p) :: res) var pu se =
         let
           val t0 = comp_Type t
           val (y0, var2) = get_Variable var y t0 var false
           val finish = [Data.Assign2S((t0, Data.CstS("0", p), Data.VarS(y0, p), p))]
-          val (start, var3) = comp_Undecl res var2
+          val (start, var3, pu2, se2) = comp_Undecl res var2 pu se
         in
-          (start@finish, var3)
+          (start@finish, var3, pu2, se2)
         end
-    | comp_Undecl (Hermes.ArrayDecl(y, t, e, p) :: res) var =
+    | comp_Undecl (Hermes.ArrayDecl(y, t, e, p) :: res) var pu se =
         let
           val t0 = comp_Type t
-          val (yt, var2) = get_Variable var (y^"T") t0 var true
-          val finish = [Data.Assign2S((Data.TypeS(Data.Public, Data.u64), Data.CstS("0", p), Data.VarS(yt, p), p))]
-          val (ys, var3) = get_Variable var2 (y^"S") t0 var2 true
-          val (expr, var4) = comp_E e "^" (Data.TypeS(Data.Public, Data.u64)) "0" ys p p var3 true
-          val (start, var5) = comp_Undecl res var4
+          val size = (get_Size t0) div 8
+          val incr = get_Size_Array e
         in
-          (start@expr@finish, var5)
+          if isSecret t0
+          then
+            let
+              val (start, var2, pu2, se2) = comp_Undecl res var pu se
+              val (yt, var3) = get_Variable var2 (y^"T") t0 var2 true
+              val finish = [Data.Assign2S((Data.TypeS(Data.Public, Data.u64), Data.CstS(Int.toString(se2-(incr*size)), p), Data.VarS(yt, p), p))]
+              val (ys, var4) = get_Variable var3 (y^"S") t0 var3 true
+              val (expr, var5) = comp_E e "^" (Data.TypeS(Data.Public, Data.u64)) "0" ys p p var4 true
+            in
+              (start@expr@finish, var5, pu2, (se2-(incr*size)))
+            end
+          else
+            let
+              val (start, var2, pu2, se2) = comp_Undecl res var pu se
+              val (yt, var3) = get_Variable var2 (y^"T") t0 var2 true
+              val finish = [Data.Assign2S((Data.TypeS(Data.Public, Data.u64), Data.CstS(Int.toString(pu2-(incr*size)), p), Data.VarS(yt, p), p))]
+              val (ys, var4) = get_Variable var3 (y^"S") t0 var3 true
+              val (expr, var5) = comp_E e "^" (Data.TypeS(Data.Public, Data.u64)) "0" ys p p var4 true
+            in
+              (start@expr@finish, var5, (pu2-(incr*size)), se2)
+            end
         end
 
   fun checkD (Hermes.Bin(bop, e1, e2, p)) var p2 label incr =
@@ -1511,57 +1554,57 @@ struct
         end
   
   (* Compile Statements *)
-  fun comp_S block res (Hermes.Skip) entry var label incr = (block, entry, res, var) (* Skip *)
-    | comp_S block res (Hermes.Update(upop, lv, e, p)) entry var label incr = (* Updates *)
+  fun comp_S block res (Hermes.Skip) entry var label incr pu se = (block, entry, res, var, pu, se) (* Skip *)
+    | comp_S block res (Hermes.Update(upop, lv, e, p)) entry var label incr pu se = (* Updates *)
         let
           val (start, finish, t, x, x0, p2, var2, bool) = comp_LVal lv var
           val u = comp_Upop upop
           val (expr, var3) = comp_E e u t x x0 p2 p var2 bool
         in
-          (block, entry, res@start@expr@finish, var3)
+          (block, entry, res@start@expr@finish, var3, pu, se)
         end
-    | comp_S block res (Hermes.Swap(lval1, lval2, p)) entry var label incr = (* Swaps *)
+    | comp_S block res (Hermes.Swap(lval1, lval2, p)) entry var label incr pu se = (* Swaps *)
         let
           val (start1, finish1, t1, x1, x0, p1, var2, bool1) = comp_LVal lval1 var
           val (start2, finish2, t2, y1, y0, p2, var3, bool2) = comp_LVal lval2 var2
         in
           case (lval1, lval2) of
             (Hermes.Var(_), Hermes.Var(_)) =>
-              (block, entry, res@[Data.DAssignS(t1, Data.VarS(x1, p1), t2, Data.VarS(y1, p2), Data.VarS(y0, p2), Data.VarS(x0, p1), p)], var3)
+              (block, entry, res@[Data.DAssignS(t1, Data.VarS(x1, p1), t2, Data.VarS(y1, p2), Data.VarS(y0, p2), Data.VarS(x0, p1), p)], var3, pu, se)
           | (Hermes.Array(_), Hermes.Array(_)) =>
               (block, entry, res@start1@start2@
               [Data.MemSwapS(Data.MemoryS(t1, Data.VarS(x1, p1), p), Data.MemoryS(t2, Data.VarS(y1, p2), p), p)]
-              @finish2@finish1, var3)
+              @finish2@finish1, var3, pu, se)
           | (Hermes.UnsafeArray(_), Hermes.UnsafeArray(_)) =>
               (block, entry, res@start1@start2@
               [Data.MemSwapS(Data.MemoryS(t1, Data.VarS(x1, p1), p), Data.MemoryS(t2, Data.VarS(y1, p2), p), p)]
-              @finish2@finish1, var3)
+              @finish2@finish1, var3, pu, se)
           | (Hermes.Var(_), Hermes.Array(_)) =>
               (block, entry, res@start2@
               [Data.SwapS(Data.VarS(x1, p1), Data.MemoryS(t2, Data.VarS(y1, p2), p), Data.VarS(x0, p1), p)]
-              @finish2, var3)
+              @finish2, var3, pu, se)
           | (Hermes.Var(_), Hermes.UnsafeArray(_)) =>
               (block, entry, res@start2@
               [Data.SwapS(Data.VarS(x1, p1), Data.MemoryS(t2, Data.VarS(y1, p2), p), Data.VarS(x0, p1), p)]
-              @finish2, var3)
+              @finish2, var3, pu, se)
           | (Hermes.Array(_), Hermes.Var(_)) =>
               (block, entry, res@start1@
               [Data.SwapS(Data.VarS(y1, p2), Data.MemoryS(t1, Data.VarS(x1, p1), p), Data.VarS(y0, p2), p)]
-              @finish1, var3)
+              @finish1, var3, pu, se)
           | (Hermes.Array(_), Hermes.UnsafeArray(_)) =>
               (block, entry, res@start1@start2@
               [Data.MemSwapS(Data.MemoryS(t1, Data.VarS(x1, p1), p), Data.MemoryS(t2, Data.VarS(y1, p2), p), p)]
-              @finish2@finish1, var3)
+              @finish2@finish1, var3, pu, se)
           | (Hermes.UnsafeArray(_), Hermes.Var(_)) =>
               (block, entry, res@start1@
               [Data.SwapS(Data.VarS(y1, p2), Data.MemoryS(t1, Data.VarS(x1, p1), p), Data.VarS(y0, p2), p)]
-              @finish1, var3)
+              @finish1, var3, pu, se)
           | (Hermes.UnsafeArray(_), Hermes.Array(_)) =>
               (block, entry, res@start1@start2@
               [Data.MemSwapS(Data.MemoryS(t1, Data.VarS(x1, p1), p), Data.MemoryS(t2, Data.VarS(y1, p2), p), p)]
-              @finish2@finish1, var3)
+              @finish2@finish1, var3, pu, se)
         end
-    | comp_S block res (Hermes.If(e, s1, s2, p)) entry var label incr =
+    | comp_S block res (Hermes.If(e, s1, s2, p)) entry var label incr pu se=
         let
           val (start, expr1, var2, t01, t02, isComp1) = checkD e var p label incr
           val cond = get_Condition e var2 p t01 t02 isComp1
@@ -1571,14 +1614,14 @@ struct
           val var3 = incr_Arguments var2
           val args2 = get_Arguments var3 p []
           val entry2 = Data.UncondEntryS((label^(Int.toString incr)^"L1", p), args2, p)
-          val (block2, entry2bis, stats1, var4) = comp_S [newblock] [] s1 entry2 var3 (label^"if") 0
+          val (block2, entry2bis, stats1, var4, pu2, se2) = comp_S [newblock] [] s1 entry2 var3 (label^"if") 0 pu se
           val args3 = get_Arguments var4 p []
           val exit2 = Data.UncondExitS((label^(Int.toString incr)^"L3", p), args3, p)
           val newblock2 = Data.BlockS(entry2bis, stats1, exit2, p)
           val var5 = incr_Arguments var4
           val args4 = get_Arguments var5 p []
           val entry3 = Data.UncondEntryS((label^(Int.toString incr)^"L2", p), args4, p)
-          val (block3, entry3bis, stats2, var6) = comp_S (block2@[newblock2]) [] s2 entry3 var5 (label^"else") 0
+          val (block3, entry3bis, stats2, var6, pu3, se3) = comp_S (block2@[newblock2]) [] s2 entry3 var5 (label^"else") 0 pu2 se2
           val args5 = get_Arguments var6 p []
           val exit3 = Data.UncondExitS((label^(Int.toString incr)^"L4", p), args5, p)
           val newblock3 = Data.BlockS(entry3bis, stats2, exit3, p)
@@ -1588,9 +1631,9 @@ struct
           val cond2 = get_Condition e var7 p t11 t12 isComp2
           val entry4 = Data.CondEntryS(cond2, (label^(Int.toString incr)^"L3", p), (label^(Int.toString incr)^"L4", p), args6, p)
         in
-          (block@block3@[newblock3], entry4, expr2@finish, var7)
+          (block@block3@[newblock3], entry4, expr2@finish, var7, pu3, se3)
         end
-    | comp_S block res (Hermes.For(i, e1, e2, ss, p)) entry var label incr = 
+    | comp_S block res (Hermes.For(i, e1, e2, ss, p)) entry var label incr pu se = 
         let
           val var2 = incr_Variable var i
           val (i0, var3) = get_Variable var2 i (Data.TypeS(Data.Public, Data.u64)) var2 false
@@ -1604,7 +1647,7 @@ struct
           val (i1, var7) = get_Variable var6 i (Data.TypeS(Data.Public, Data.u64)) var6 false
           val cond1 = get_Condition_Equal i1 e1 var7 p (label^(Int.toString incr)^"T1")
           val entry2 = Data.CondEntryS(cond1, (label^(Int.toString incr)^"L1", p), (label^(Int.toString incr)^"L2", p), args2, p)
-          val (block2, entry3, stats, var8) = comp_S [newblock] [] ss entry2 var7 (label^"for") 0
+          val (block2, entry3, stats, var8, pu2, se2) = comp_S [newblock] [] ss entry2 var7 (label^"for") 0 pu se
           val unused = get_unused var7 var8
           val args3 = get_Arguments var8 p unused
           val (i2, var9) = get_Variable var8 i (Data.TypeS(Data.Public, Data.u64)) var8 false
@@ -1618,35 +1661,35 @@ struct
           val (expr2, finish2, var12) = comp_E_condF e2 "^" (Data.TypeS(Data.Public, Data.u64)) "0" i3 p p var11 true (label^(Int.toString incr)^"T2") (label^(Int.toString incr)^"I2")
           val (_, finish1, var13) = comp_E_condF e1 "^" (Data.TypeS(Data.Public, Data.u64)) "0" i3 p p var12 true (label^(Int.toString incr)^"T1") (label^(Int.toString incr)^"I1")
         in
-          (block@block2@[newblock2], entry4, expr2@finish2@finish1, var11)
+          (block@block2@[newblock2], entry4, expr2@finish2@finish1, var11, pu2, se2)
         end
-    | comp_S block res (Hermes.Call(f, lvals, p)) entry var label incr =
+    | comp_S block res (Hermes.Call(f, lvals, p)) entry var label incr pu se =
         let
           val (start, finish, oldargs, newargs, var2) = get_Called_Args lvals var
           val expr = [Data.AssignArgS(newargs, Data.CallS((f, p), oldargs, p), p)]
         in
-          (block, entry, res@start@expr@finish, var2)
+          (block, entry, res@start@expr@finish, var2, pu, se)
         end
-    | comp_S block res (Hermes.Uncall(f, lvals, p)) entry var label incr =
+    | comp_S block res (Hermes.Uncall(f, lvals, p)) entry var label incr pu se =
         let
           val (start, finish, oldargs, newargs, var2) = get_Called_Args lvals var
           val expr = [Data.AssignArgS(newargs, Data.UncallS((f, p), oldargs, p), p)]
         in
-          (block, entry, res@start@expr@finish, var2)
+          (block, entry, res@start@expr@finish, var2, pu, se)
         end
-    | comp_S block res (Hermes.Block(d, ss, p)) entry var label incr = (* Blocks *)
+    | comp_S block res (Hermes.Block(d, ss, p)) entry var label incr pu se = (* Blocks *)
         let
-          val (start, var2) = comp_Decl d var
-          val (block2, entry2, stats, var3) = comp_Block block (res@start) ss entry var2 label incr
-          val (finish, var4) = comp_Undecl d var3
+          val (start, var2, pu2, se2) = comp_Decl d var pu se
+          val (block2, entry2, stats, var3, pu3, se3) = comp_Block block (res@start) ss entry var2 label incr pu2 se2
+          val (finish, var4, pu4, se4) = comp_Undecl d var3 pu3 se3
         in
-          (block2, entry2, stats@finish, var4)
+          (block2, entry2, stats@finish, var4, pu4, se4)
         end
   (* Compile Blocks *)
-  and comp_Block block res [] entry var label incr = (block, entry, res, var)
-    | comp_Block block res (s :: ss) entry var label incr =
+  and comp_Block block res [] entry var label incr pu se = (block, entry, res, var, pu, se)
+    | comp_Block block res (s :: ss) entry var label incr pu se=
         let
-          val (block2, entry2, stats, var2) = comp_S block res s entry var label incr
+          val (block2, entry2, stats, var2, pu2, se2) = comp_S block res s entry var label incr pu se
         in
           case s of
             (Hermes.For(_)) =>
@@ -1655,24 +1698,24 @@ struct
                 val newvar = get_Arguments_Variable var2 unused
 
               in
-                comp_Block block2 stats ss entry2 newvar label (incr+1)
+                comp_Block block2 stats ss entry2 newvar label (incr+1) pu2 se2
               end
           | (Hermes.If(_)) =>
               let
                 val unused = get_unused var var2
                 val newvar = get_Arguments_Variable var2 unused
               in
-                comp_Block block2 stats ss entry2 newvar label (incr+1)
+                comp_Block block2 stats ss entry2 newvar label (incr+1) pu2 se2
               end
           | (Hermes.Block(_)) =>
               let
                 val unused = get_unused var var2
                 val newvar = get_Arguments_Variable var2 unused
               in
-                comp_Block block2 stats ss entry2 newvar label (incr+1)
+                comp_Block block2 stats ss entry2 newvar label (incr+1) pu2 se2
               end
           | _ =>
-            comp_Block block2 stats ss entry2 var2 label incr
+            comp_Block block2 stats ss entry2 var2 label incr pu2 se2
         end
 
   (* Compile Begin entry *)
@@ -1696,21 +1739,21 @@ struct
         end
 
   (* Compile Program *)
-  fun comp_P [] i = []
-    | comp_P ((f, pars, s, p) :: ps) i =
+  fun comp_P [] i pu se = []
+    | comp_P ((f, pars, s, p) :: ps) i pu se =
         let
           val (entry, label, var) = comp_Entry f pars i p []
           val _ = TextIO.print("[" ^ printVar var)
-          val (block, entry2, stats, var2) = comp_S [] [] s entry var label 0
+          val (block, entry2, stats, var2, pu2, se2) = comp_S [] [] s entry var label 0 pu se
           val (exit, var3) = comp_Exit f pars i p var2
           val _ = TextIO.print("[" ^ printVar var3)
         in
-          block@[Data.BlockS(entry2, stats, exit, p)]@(comp_P ps (i+1))
+          block@[Data.BlockS(entry2, stats, exit, p)]@(comp_P ps (i+1) pu2 se2)
         end
 
   fun compile pgm =
         let
-          val blocks = comp_P pgm 0
+          val blocks = comp_P pgm 0 0 0
         in
           Data.ProgramS(blocks)
         end

@@ -15,7 +15,7 @@ struct
       val strs = String.tokens Char.isSpace str
       val ve = List.map (fn st => limitZ 8 (string2h st (0,0))) strs
       val arr = Array.fromList(ve)
-      val new = Array.array(80, limitZ 64 (int2h 0))
+      val new = Array.array(180, limitZ 64 (int2h 0))
       val _ = Array.copy{di = 0, dst = new, src = arr}
     in
       new
@@ -28,7 +28,7 @@ struct
       val strs = String.tokens Char.isSpace str
       val ve = List.map (fn st => limitZ 8 (string2h st (0,0))) strs
       val arr = Array.fromList(ve)
-      val new = Array.array(80, limitZ 64 (int2h 0))
+      val new = Array.array(180, limitZ 64 (int2h 0))
       val _ = Array.copy{di = 0, dst = new, src = arr}
     in
       new
@@ -619,7 +619,7 @@ fun rho_return [] rho p = []
                     else raise Error ("Constant isn't equal to memory", p)
               end
           | (Data.CstS(c, _)) =>
-              (storeMem(mem, i, turnByte(64, (limitZ z1 (string2h c (0, 0))), p)) ;
+              (storeMem(mem, i, turnByte(z1, (limitZ z1 (string2h c (0, 0))), p)) ;
               case a1 of
                 (Data.VarS(v1)) =>
                   do_S gamma (rho@[((get_Var v1), (int2h z1, Variable (ref x)))]) s oprg

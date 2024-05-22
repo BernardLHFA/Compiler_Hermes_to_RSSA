@@ -1,2 +1,4 @@
-encrypt (public u64 x, public u8 ct[])
-	ct[x] += 1;
+rc5(u32 ct[], u32 S[])
+{
+  u32 z[1], x, y, a[1];
+}
