@@ -20,10 +20,12 @@ struct
         then [(t, a, (n+1), b)]@res
         else [(t, a, n, b)]@(incr_Variable res x)
   
+  (* Increment all arguments in the variable list *)
   fun incr_Arguments [] = []
     | incr_Arguments ((t, a, n, b) :: res) =
         [(t, a, (n+1), b)]@(incr_Arguments res)
   
+  (* Power of *)
   fun get_Power 0 = 0
     | get_Power 1 = 0
     | get_Power z =
@@ -41,12 +43,14 @@ struct
         then (a^(Int.toString n), ovar)
         else get_Variable rest x t ovar isArray
   
+  (* Checks if a variable has been declared *)
   fun is_Variable_In x [] = false
     | is_Variable_In x ((t, a, n, b) :: res) =
         if x = a
         then true
         else is_Variable_In x res
 
+  (* Get all non temporary variables as arguments from the variable list *)
   fun get_Arguments [] p unused = []
     | get_Arguments ((t, a, n, b) :: res) p unused =
         case a of
@@ -60,6 +64,7 @@ struct
               then [Data.ArgS((Data.TypeS(Data.Public, Data.u64)), Data.VarS(a^(Int.toString n), p))]@(get_Arguments res p unused)
               else [Data.ArgS(t, Data.VarS(a^(Int.toString n), p))]@(get_Arguments res p unused)
   
+  (* Returns variables, while removing those exclusive to a block *)
   fun get_Arguments_Variable [] unused = []
     | get_Arguments_Variable ((t, a, n, b) :: res) unused =
         if is_Variable_In a unused
@@ -73,12 +78,14 @@ struct
         then t
         else get_Type x res p
 
+  (* Get all variable from one block that are unused in another *)
   fun get_unused var1 [] = []
     | get_unused var1 ((t, a, n, b) :: res) =
         if is_Variable_In a var1
         then get_unused var1 res
         else [(t, a, n, b)]@(get_unused var1 res)
   
+  (* Checks if a variable represents an array *)
   fun is_Array x [] = false
     | is_Array x ((t, a, n, b) :: res) =
         if x = a
@@ -120,6 +127,7 @@ struct
         | (Data.u32) => 32
         | (Data.u64) => 64
   
+  (* Checks if type is Secret *)
   fun isSecret (Data.TypeS(p, _)) =
         case p of
           (Data.Secret) => true
@@ -150,6 +158,7 @@ struct
     | comp_BinOp Hermes.Leq = "<="
     | comp_BinOp Hermes.Geq = ">="
   
+  (* Checks if operator is comparative *)
   fun check_Comp Hermes.Equal = true
     | check_Comp Hermes.Less = true
     | check_Comp Hermes.Greater = true
@@ -800,6 +809,7 @@ struct
           (expr1, expr2, var3)
         end
   
+  (* Compile first half of Conditional expression, used for ifs and fors *)
   fun comp_E_condD (Hermes.Rval(lval)) upop t x x0 p2 p3 var bool t0 i0 = 
         (case lval of
           (Hermes.Var(_)) =>
@@ -828,28 +838,7 @@ struct
               (indexCreate@start, [Data.AssignS(t, xin, Data.UpdOp2S(upop, xout, Data.SimOp2S(Data.VarS(T2, p)), p2), p3)], var9)
             end
         | (Hermes.UnsafeArray(y, e, p)) =>
-            raise Error ("Conditions must be public", p)
-            (*let
-              val ta = get_Type (y^"T") var p
-              val size = (get_Size t) div 8
-              val var2 = incr_Variable var t0
-              val (T1, var3) = get_Variable var2 t0 (Data.TypeS(Data.Secret, Data.u64)) var2 false
-              val (indexCreate, var4) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T1 "0" p p var3 true
-              val var5 = incr_Variable var4 i0
-              val (I1, var6) = get_Variable var5 i0 (Data.TypeS(Data.Secret, Data.u64)) var5 false
-              val var7 = incr_Variable var6 t0
-              val (T2, var8) = get_Variable var7 t0 (Data.TypeS(Data.Secret, Data.u64)) var7 false
-              val (yT, var9) = get_Variable var8 (y^"T") t var8 true
-              val var10 = incr_Variable var9 i0
-              val (I2, var11) = get_Variable var10 i0 (Data.TypeS(Data.Public, Data.u64)) var10 false
-              val start = [Data.AssignS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I1, p), Data.UpdOp2S("+", Data.CstS("0", p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T1, p), p), p), p),
-                          Data.TAssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I2, p), Data.RevealS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I1, p), p), p), 
-                          Data.SwapS(Data.VarS(T2, p), Data.MemoryS(ta, Data.VarS(I2, p), p), Data.CstS("0", p), p)]
-              val xout = comp_Var x0 p2
-              val xin = comp_Var x p2
-            in
-              (indexCreate@start, [Data.AssignS(t, xin, Data.UpdOp2S(upop, xout, Data.SimOp2S(Data.VarS(T2, p)), p2), p3)], var11)
-            end*))
+            raise Error ("Conditions must be public", p))
     | comp_E_condD (Hermes.Bin(bop, e1, e2, p)) upop t x x0 p2 p3 var bool t0 i0 =
         let
           val xout = comp_Var x0 p2
@@ -870,7 +859,8 @@ struct
         in
           ([], expr, var2)
         end
-    
+  
+  (* Compile second hald of Conditional expression, used for ifs and fors*)
   fun comp_E_condF (Hermes.Rval(lval)) upop t x x0 p2 p3 var bool t0 i0 = 
         (case lval of
           (Hermes.Var(_)) =>
@@ -899,28 +889,7 @@ struct
               swap@indexCreate@finish@indexEmpty,var8)
             end
         | (Hermes.UnsafeArray(y, e, p)) =>
-            raise Error ("Conditions must be public", p)
-            (*let
-              val ta = get_Type (y^"T") var p
-              val size = (get_Size t) div 8
-              val (I1, var2) = get_Variable var i0 (Data.TypeS(Data.Secret, Data.u64)) var false
-              val (T1, var3) = get_Variable var2 t0 (Data.TypeS(Data.Secret, Data.u64)) var2 false
-              val swap = [Data.SwapS(Data.CstS("0", p), Data.MemoryS(ta, Data.VarS(I1, p), p), Data.VarS(T1, p), p)]
-              val var4 = incr_Variable var3 t0
-              val (T2, var5) = get_Variable var4 t0 (Data.TypeS(Data.Secret, Data.u64)) var4 false
-              val (indexCreate, var6) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "+" (Data.TypeS(Data.Public, Data.u64)) T2 "0" p p var5 true
-              val (yT, var7) = get_Variable var6 (y^"T") t var6 true
-              val var8 = incr_Variable var7 i0
-              val (I2, var9) = get_Variable var8 i0 (Data.TypeS(Data.Public, Data.u64)) var8 false
-              val finish = [Data.TAssignS(Data.TypeS(Data.Secret, Data.u64), Data.VarS(I2, p), Data.HideS(Data.TypeS(Data.Public, Data.u64), Data.VarS(I1, p), p), p),
-                            Data.AssignS(Data.TypeS(Data.Secret, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(I2, p), Data.Op2S("+", Data.VarS(yT, p), Data.VarS(T2, p), p), p), p)]
-              val (indexEmpty, var10) = comp_E (Hermes.Bin(Hermes.Times, e, Hermes.Const(Int.toString(size), p), p)) "-" (Data.TypeS(Data.Public, Data.u64)) "0" T2 p p var9 true
-              val xout = comp_Var x0 p2
-              val xin = comp_Var x p2
-            in
-              ([Data.AssignS(t, xin, Data.UpdOp2S(upop, xout, Data.SimOp2S(Data.VarS(T1, p)), p2), p3)], 
-              swap@indexCreate@finish@indexEmpty,var10)
-            end*))
+            raise Error ("Conditions must be public", p))
     | comp_E_condF (Hermes.Bin(bop, e1, e2, p)) upop t x x0 p2 p3 var bool t0 i0 =
         let
           val xout = comp_Var x0 p2
@@ -941,6 +910,7 @@ struct
           (expr, [], var2)
         end
   
+  (* Get arguments used in procedure calls *)
   fun get_Called_Args [] var = ([], [], [], [], var)
     | get_Called_Args ((Hermes.Var(x, p)) :: lvals) var =
         if is_Array (x^"T") var
@@ -1036,9 +1006,11 @@ struct
           (exprD@swap1@startres, finishres@swap2@exprF, oa@oldargs, na@newargs, var18)
         end
   
+  (* Get size of an array *)
   fun get_Size_Array (Hermes.Const(c, p)) =
         valOf (Int.fromString c)
   
+  (* Compile Declarations *)
   fun comp_Decl [] var pu s = ([], var, pu, s)
     | comp_Decl (Hermes.ConstDecl(y, i, p) :: res) var pu s =
         let
@@ -1088,6 +1060,7 @@ struct
             end
         end
   
+  (* Compiler Undeclarations *)
   fun comp_Undecl [] var pu se = ([], var, pu, se)
     | comp_Undecl (Hermes.ConstDecl(y, i, p) :: res) var pu se =
         let
@@ -1135,6 +1108,7 @@ struct
             end
         end
 
+  (* Checks if conditional expressions use comparison expressions, used for exit jumps *)
   fun checkD (Hermes.Bin(bop, e1, e2, p)) var p2 label incr =
         if check_Comp bop
         then 
@@ -1165,17 +1139,11 @@ struct
               (start, expr, var4, T0, "", false)
             end
         | (Hermes.UnsafeArray(y, e, p)) =>
-            raise Error ("Conditions must be public", p)
-            (*let
-              val var2 = incr_Variable var (label^(Int.toString incr)^"TT")
-              val (T0, var3) = get_Variable var2 (label^(Int.toString incr)^"TT") (Data.TypeS(Data.Public, Data.u64)) var2 false
-              val (start, expr, var4) = comp_E_condD (Hermes.Rval(lval)) "^" (Data.TypeS(Data.Public, Data.u64)) T0 "0" p2 p2 var3 true (label^(Int.toString incr)^"T") (label^(Int.toString incr)^"I")
-            in
-              (start, expr, var4, T0, "", false)
-            end*))
+            raise Error ("Conditions must be public", p))
     | checkD e var p2 label incr =
         ([], [], var, "", "", false)
   
+  (* Checks if conditional expressions use comparison expressions, used for entry joins *)
   fun checkF (Hermes.Bin(bop, e1, e2, p)) var p2 label incr =
         if check_Comp bop
         then 
@@ -1204,16 +1172,11 @@ struct
               (start, expr, var3, T0, "", false)
             end
         | (Hermes.UnsafeArray(y, e, p)) =>
-            raise Error ("Conditions must be public", p)
-            (*let
-              val (T0, var2) = get_Variable var (label^(Int.toString incr)^"TT") (Data.TypeS(Data.Public, Data.u64)) var false
-              val (start, expr, var3) = comp_E_condF (Hermes.Rval(lval)) "^" (Data.TypeS(Data.Public, Data.u64)) "0" T0 p2 p2 var2 true (label^(Int.toString incr)^"T") (label^(Int.toString incr)^"I")
-            in
-              (start, expr, var3, T0, "", false)
-            end*))
+            raise Error ("Conditions must be public", p))
     | checkF e var p2 label incr =
         ([], [], var, "", "", false)
   
+  (* Get Conditional expression *)
   fun get_Condition (Hermes.Const(i, p)) var p2 t0 t1 isComp =
         Data.BoolOp2S("!=", Data.CstS(i, p), Data.CstS("0", p), p2)
     | get_Condition (Hermes.Rval(lval)) var p2 t0 t1 isComp =
@@ -1503,6 +1466,7 @@ struct
         else
           Data.BoolOp2S("!=", Data.VarS(t0, p), Data.CstS("0", p), p2)
 
+  (* Get is equal expression, used for for-loops *)
   fun get_Condition_Equal a (Hermes.Const(i, p)) var p2 t0 = 
         Data.BoolOp2S("==", Data.VarS(a, p2), Data.CstS(i, p), p2)
     | get_Condition_Equal a (Hermes.Rval(lval)) var p2 t0 =
@@ -1534,23 +1498,132 @@ struct
           Data.BoolOp2S("==", Data.VarS(a, p2), Data.VarS(T, p), p2)
         end
 
-  (* Compiler Arguments *)
-  fun comp_Args [] var res = (res, var)
-    | comp_Args (Hermes.VarArg(x, t, p) :: pargs) var res =
+  (* Compiler Arguments at the begin jump *)
+  fun comp_Args_Begin [] var res expr pi pmsp si smsp  = (res, var, expr)
+    | comp_Args_Begin (Hermes.VarArg(x, t, p) :: pargs) var res expr pi pmsp si smsp =
         let
           val ty = comp_Type t
           val (atom, var2) = get_Variable var x ty var false
         in
-          comp_Args pargs var2 (res@[Data.ArgS(ty, Data.VarS(atom, p))])
+          comp_Args_Begin pargs var2 (res@[Data.ArgS(ty, Data.VarS(atom, p))]) expr pi pmsp si smsp
         end
-    | comp_Args (Hermes.ArrayArg(x, t, p) :: pargs) var res =
+    | comp_Args_Begin (Hermes.ArrayArg(x, t, p) :: pargs) var res expr pi pmsp si smsp =
         let
           val ty = comp_Type t
           val (atomBegin, var2) = get_Variable var (x^"T") ty var true
           val (atomSize, var3) = get_Variable var2 (x^"S") (Data.TypeS(Data.Public, Data.u64)) var2 true
         in
-          comp_Args pargs var3 (res@[Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomBegin, p)),
-                                    Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomSize, p))])
+          if isSecret ty
+          then
+            let
+              val var4 = incr_Variable var3 "SMSP"
+              val (smsp1, var5) = get_Variable var4 "SMSP" (Data.TypeS(Data.Public, Data.u64)) var4 false
+            in
+              if si = 0
+              then
+                let
+                  val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(smsp1, p), Data.UpdOp2S("+", Data.CstS("0", p), Data.SimOp2S(Data.VarS(atomSize, p)), p), p)]
+                in
+                  comp_Args_Begin pargs var5 (res@[Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomBegin, p)),
+                                                  Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomSize, p))])
+                                        (expr@start) pi pmsp (si+1) smsp1
+                end
+              else
+                let
+                  val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(smsp1, p), Data.UpdOp2S("+", Data.VarS(smsp, p), Data.SimOp2S(Data.VarS(atomSize, p)), p), p)]
+                in
+                  comp_Args_Begin pargs var5 (res@[Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomBegin, p)),
+                                                  Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomSize, p))])
+                                        (expr@start) pi pmsp (si+1) smsp1
+                end
+            end
+          else
+            let
+              val var4 = incr_Variable var3 "PMSP"
+              val (pmsp1, var5) = get_Variable var4 "PMSP" (Data.TypeS(Data.Public, Data.u64)) var4 false
+            in
+              if pi = 0
+              then
+                let
+                  val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(pmsp1, p), Data.UpdOp2S("+", Data.CstS("0", p), Data.SimOp2S(Data.VarS(atomSize, p)), p), p)]
+                in
+                  comp_Args_Begin pargs var5 (res@[Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomBegin, p)),
+                                                  Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomSize, p))])
+                                        (expr@start) (pi+1) pmsp1 si smsp
+                end
+              else
+                let
+                  val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(pmsp1, p), Data.UpdOp2S("+", Data.VarS(pmsp, p), Data.SimOp2S(Data.VarS(atomSize, p)), p), p)]
+                in
+                  comp_Args_Begin pargs var5 (res@[Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomBegin, p)),
+                                                  Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomSize, p))])
+                                        (expr@start) (pi+1) pmsp1 si smsp
+                end
+            end
+        end
+    
+  (* Compiler Arguments at the end jump *)
+  fun comp_Args_End [] var res expr pi si = (res, var, expr)
+    | comp_Args_End (Hermes.VarArg(x, t, p) :: pargs) var res expr pi si =
+        let
+          val ty = comp_Type t
+          val (atom, var2) = get_Variable var x ty var false
+        in
+          comp_Args_End pargs var2 (res@[Data.ArgS(ty, Data.VarS(atom, p))]) expr pi si
+        end
+    | comp_Args_End (Hermes.ArrayArg(x, t, p) :: pargs) var res expr pi si =
+        let
+          val ty = comp_Type t
+          val (atomBegin, var2) = get_Variable var (x^"T") ty var true
+          val (atomSize, var3) = get_Variable var2 (x^"S") (Data.TypeS(Data.Public, Data.u64)) var2 true
+        in
+          if isSecret ty
+          then
+            let
+              val (res2, var4, expr2) = comp_Args_End pargs var3 (res@[Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomBegin, p)),
+                                                                  Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomSize, p))])
+                                                        expr pi (si+1)
+              val (smsp0, var5) = get_Variable var4 "SMSP" (Data.TypeS(Data.Public, Data.u64)) var4 false
+              val var6 = incr_Variable var5 "SMSP"
+              val (smsp1, var7) = get_Variable var6 "SMSP" (Data.TypeS(Data.Public, Data.u64)) var6 false
+            in
+              if si = 0
+              then
+                let
+                  val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(smsp0, p), Data.SimOp2S(Data.VarS(atomSize, p)), p), p)]
+                in
+                  (res2, var7, expr2@start)
+                end
+              else
+                let
+                  val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(smsp1, p), Data.UpdOp2S("-", Data.VarS(smsp0, p), Data.SimOp2S(Data.VarS(atomSize, p)), p), p)]
+                in
+                  (res2, var7, expr2@start)
+                end
+            end
+          else
+            let
+              val (res2, var4, expr2) = comp_Args_End pargs var3 (res@[Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomBegin, p)),
+                                                                      Data.ArgS(Data.TypeS(Data.Public, Data.u64), Data.VarS(atomSize, p))])
+                                                            expr (pi+1) si
+              val (pmsp0, var5) = get_Variable var4 "PMSP" (Data.TypeS(Data.Public, Data.u64)) var4 false
+              val var6 = incr_Variable var5 "PMSP"
+              val (pmsp1, var7) = get_Variable var6 "PMSP" (Data.TypeS(Data.Public, Data.u64)) var6 false
+            in
+              if pi = 0
+              then
+                let
+                  val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.CstS("0", p), Data.UpdOp2S("-", Data.VarS(pmsp0, p), Data.SimOp2S(Data.VarS(atomSize, p)), p), p)]
+                in
+                  (res2, var7, expr2@start)
+                end
+              else
+                let
+                  val start = [Data.AssignS(Data.TypeS(Data.Public, Data.u64), Data.VarS(pmsp1, p), Data.UpdOp2S("-", Data.VarS(pmsp0, p), Data.SimOp2S(Data.VarS(atomSize, p)), p), p)]
+                in
+                  (res2, var7, expr2@start)
+                end
+            end
         end
   
   (* Compile Statements *)
@@ -1604,7 +1677,7 @@ struct
               [Data.MemSwapS(Data.MemoryS(t1, Data.VarS(x1, p1), p), Data.MemoryS(t2, Data.VarS(y1, p2), p), p)]
               @finish2@finish1, var3, pu, se)
         end
-    | comp_S block res (Hermes.If(e, s1, s2, p)) entry var label incr pu se=
+    | comp_S block res (Hermes.If(e, s1, s2, p)) entry var label incr pu se = (* If-statements *)
         let
           val (start, expr1, var2, t01, t02, isComp1) = checkD e var p label incr
           val cond = get_Condition e var2 p t01 t02 isComp1
@@ -1633,7 +1706,7 @@ struct
         in
           (block@block3@[newblock3], entry4, expr2@finish, var7, pu3, se3)
         end
-    | comp_S block res (Hermes.For(i, e1, e2, ss, p)) entry var label incr pu se = 
+    | comp_S block res (Hermes.For(i, e1, e2, ss, p)) entry var label incr pu se = (* For-loops *)
         let
           val var2 = incr_Variable var i
           val (i0, var3) = get_Variable var2 i (Data.TypeS(Data.Public, Data.u64)) var2 false
@@ -1663,14 +1736,14 @@ struct
         in
           (block@block2@[newblock2], entry4, expr2@finish2@finish1, var11, pu2, se2)
         end
-    | comp_S block res (Hermes.Call(f, lvals, p)) entry var label incr pu se =
+    | comp_S block res (Hermes.Call(f, lvals, p)) entry var label incr pu se = (* Procedure Calls *)
         let
           val (start, finish, oldargs, newargs, var2) = get_Called_Args lvals var
           val expr = [Data.AssignArgS(newargs, Data.CallS((f, p), oldargs, p), p)]
         in
           (block, entry, res@start@expr@finish, var2, pu, se)
         end
-    | comp_S block res (Hermes.Uncall(f, lvals, p)) entry var label incr pu se =
+    | comp_S block res (Hermes.Uncall(f, lvals, p)) entry var label incr pu se = (* Procedure Uncalls *)
         let
           val (start, finish, oldargs, newargs, var2) = get_Called_Args lvals var
           val expr = [Data.AssignArgS(newargs, Data.UncallS((f, p), oldargs, p), p)]
@@ -1721,34 +1794,34 @@ struct
   (* Compile Begin entry *)
   fun comp_Entry f pargs i p var =
         let
-          val (args, var2) = comp_Args pargs var []
+          val (args, var2, expr) = comp_Args_Begin pargs var [] [] 0 "0" 0 "0"
         in
           if i = 0
-          then (Data.BeginS(("main", p), args, p), "main", var2)
-          else (Data.BeginS((f, p), args, p), f, var2)
+          then (Data.BeginS(("main", p), args, p), "main", var2, expr)
+          else (Data.BeginS((f, p), args, p), f, var2, expr)
         end
   
   (* Compile End exit *)
   fun comp_Exit f pargs i p var =
         let
-          val (args, var2) = comp_Args pargs var []
+          val (args, var2, expr) = comp_Args_End pargs var [] [] 0 0
         in
           if i = 0
-          then (Data.EndS(("main", p), args, p), var2)
-          else (Data.EndS((f, p), args, p), var2)
+          then (Data.EndS(("main", p), args, p), var2, expr)
+          else (Data.EndS((f, p), args, p), var2, expr)
         end
 
   (* Compile Program *)
   fun comp_P [] i pu se = []
     | comp_P ((f, pars, s, p) :: ps) i pu se =
         let
-          val (entry, label, var) = comp_Entry f pars i p []
+          val (entry, label, var, start) = comp_Entry f pars i p []
           val _ = TextIO.print("[" ^ printVar var)
-          val (block, entry2, stats, var2, pu2, se2) = comp_S [] [] s entry var label 0 pu se
-          val (exit, var3) = comp_Exit f pars i p var2
+          val (block, entry2, stats, var2, pu2, se2) = comp_S [] start s entry var label 0 pu se
+          val (exit, var3, finish) = comp_Exit f pars i p var2
           val _ = TextIO.print("[" ^ printVar var3)
         in
-          block@[Data.BlockS(entry2, stats, exit, p)]@(comp_P ps (i+1) pu2 se2)
+          block@[Data.BlockS(entry2, stats@finish, exit, p)]@(comp_P ps (i+1) pu2 se2)
         end
 
   fun compile pgm =

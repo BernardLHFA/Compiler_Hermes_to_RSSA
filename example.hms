@@ -1,4 +1,4 @@
-rc5(u32 ct[], u32 S[])
+rc5(public u32 ct[], u32 S[], u32 x)
 {
-  u32 z[1], x, y, a[1];
+  
 }
