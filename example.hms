@@ -1,4 +1,8 @@
-rc5(public u32 ct[], u32 S[], u32 x)
+rc5(public u64 ct[], u32 S[], u32 x)
 {
-  
+  if (ct[0] < 5){
+  	x++;
+  }else{
+  	x--;
+  }
 }

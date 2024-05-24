@@ -15,7 +15,7 @@ struct
       val strs = String.tokens Char.isSpace str
       val ve = List.map (fn st => limitZ 8 (string2h st (0,0))) strs
       val arr = Array.fromList(ve)
-      val new = Array.array(180, limitZ 64 (int2h 0))
+      val new = Array.array(80, limitZ 64 (int2h 0))
       val _ = Array.copy{di = 0, dst = new, src = arr}
     in
       new
@@ -28,7 +28,7 @@ struct
       val strs = String.tokens Char.isSpace str
       val ve = List.map (fn st => limitZ 8 (string2h st (0,0))) strs
       val arr = Array.fromList(ve)
-      val new = Array.array(180, limitZ 64 (int2h 0))
+      val new = Array.array(80, limitZ 64 (int2h 0))
       val _ = Array.copy{di = 0, dst = new, src = arr}
     in
       new
