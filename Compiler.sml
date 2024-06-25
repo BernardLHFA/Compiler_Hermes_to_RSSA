@@ -78,6 +78,7 @@ struct
         then t
         else get_Type x res p
   
+  (* Remove Variable from list *)
   fun remove_Variable x [] = []
     | remove_Variable x ((t, a, n, b) :: res) =
         if x = a
@@ -1048,6 +1049,7 @@ struct
   fun get_Size_Array (Hermes.Const(c, p)) =
         valOf (Int.fromString c)
   
+  (* Initialise pointer if no arrays have been declared *)
   fun init_MSP msp var p =
         if is_Variable_In msp var
         then ([], var)
@@ -1059,6 +1061,7 @@ struct
             (expr, var2)
           end
   
+  (* Implementation of the loop or local array declarations *)
   fun array_Decl_Loop s e t result entry size var label incr p =
         let
           val var2 = incr_Variable var "i"
@@ -1096,6 +1099,7 @@ struct
           (expr2@finish2@finish1, entry3, [newblock]@[newblock2], var17)
         end
   
+  (* Implementation of the loop or local array undeclarations *)
   fun array_Undecl_Loop s e t result entry size var label incr p =
         let
           val var2 = incr_Variable var "i"
