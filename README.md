@@ -32,6 +32,7 @@ but all numbers are written in hexadecimal format.
 Example:
 
 ./hi example
+
 Initialize Secret Memory: (*The memories are initialised as empty*)
 
 Initialize Public Memory:
